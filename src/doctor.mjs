@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { loadSkill } from "./context.mjs";
 import { allRules } from "./rules/index.mjs";
 import { runRules, computeLevel, nextLevel, meets } from "./levels.mjs";
+import { pluginReport } from "./collection.mjs";
 
 export class DoctorError extends Error {}
 
@@ -53,5 +54,11 @@ export function doctor(paths, opts = {}) {
   for (const p of paths) dirs.push(...findSkills(p));
   if (!dirs.length) throw new DoctorError(`no skills found under ${paths.join(", ")} (looked for SKILL.md in the folder, its children, and skills/*/)`);
   const skills = [...new Set(dirs)].map((d) => scoreSkill(d, opts));
-  return { target, ok: skills.every((s) => meets(s.level, target)), skills };
+  const result = { target, ok: skills.every((s) => meets(s.level, target)), skills };
+  if (paths.length === 1) {
+    const plugin = pluginReport(paths[0]);
+    // A plugin is a superplugin only when every skill in it is a superskill.
+    if (plugin) result.plugin = { ...plugin, superplugin: skills.every((s) => s.level === "superskill") && !plugin.findings.some((f) => f.severity === "fail") };
+  }
+  return result;
 }

@@ -1,4 +1,5 @@
 import { nextLevel, LEVELS } from "./levels.mjs";
+import { pluginLines } from "./commands/collection.mjs";
 
 /** Human-readable doctor report: level, what to fix now, and the to-do list for the next level. */
 export function formatDoctor(result) {
@@ -19,6 +20,7 @@ export function formatDoctor(result) {
   const counts = Object.fromEntries(["none", ...LEVELS].map((l) => [l, 0]));
   for (const s of result.skills) counts[s.level]++;
   const summary = ["superskill", "tested", "skill", "none"].filter((l) => counts[l]).map((l) => `${counts[l]} ${l}`).join(", ");
+  if (result.plugin) lines.push(...pluginLines(result.plugin, result.plugin.superplugin), "");
   lines.push(`${result.skills.length} skill${result.skills.length === 1 ? "" : "s"}: ${summary}. target ${result.target}: ${result.ok ? "met" : "not met"}`);
   return lines.join("\n") + "\n";
 }

@@ -10,6 +10,7 @@ const COMMANDS = {
   misses: "../src/commands/miss.mjs",
   fix: "../src/commands/fix.mjs",
   approve: "../src/commands/approve.mjs",
+  collection: "../src/commands/collection.mjs",
 };
 
 const HELP = `superskill <command> [options]
