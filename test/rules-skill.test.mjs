@@ -89,6 +89,14 @@ test("metadata-string-map fails when metadata is not a map", () => {
   assert.deepEqual(sev("metadata-string-map", variant(fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  - a`))), ["fail"]);
 });
 
+// Before 0.2.0 the reader ignored anything nested below metadata's first level, so a map
+// hiding inside metadata passed as if it were not there. It is read now, and named.
+test("metadata-string-map names a value that is itself a map", () => {
+  const out = check("metadata-string-map", variant(fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  owner: gary\n  extra:\n    deep: x`)));
+  assert.equal(out.length, 1);
+  assert.match(out[0].message, /extra/);
+});
+
 test("length alone is never a failure: a 620-line skill still reaches the skill level", () => {
   const ctx = loadSkill(skill("huge-body"));
   const fails = runRules(ctx, skillRules, { now: NOW }).filter((f) => f.severity === "fail");

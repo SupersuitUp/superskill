@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 (2026-09-28)
+
+- The frontmatter reader reads nesting: maps inside maps, lists of maps, lists inside maps, and
+  block scalars at any depth. Until now it stopped at one level and silently ignored anything
+  deeper, so a list of maps came back empty. Values still stay strings, and no skill in two real
+  corpora (295 skills) changed level. It is exported as `parseYamlSubset` so other standards in
+  this family (hyperspecification first) read their files with this one reader instead of a
+  second copy.
+- `metadata-string-map` now names a metadata value that is itself a map; before, the reader
+  dropped it and the rule never saw it.
+
 ## 0.1.0 (2026-09-28)
 
 - `reference-says-when`: a link from SKILL.md to an instruction file must say when to read it. Long-skill fixes now point at step files (`steps/<step>.md`).

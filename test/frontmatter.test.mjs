@@ -61,3 +61,83 @@ test("CRLF input parses", () => {
   const r = parseSkillFile("---\r\nname: demo\r\n---\r\nhi\r\n");
   assert.equal(r.data.name, "demo");
 });
+
+// ── Nesting (0.2.0) ──
+// The reader stopped at one level, so a list of maps (a spec's decisions, each with its own
+// fields) or a map inside a map came back empty or flattened, silently. A second, deeper parser
+// was about to be written beside this one; the reader grew instead, so there is one.
+import { parseYamlSubset } from "../src/frontmatter.mjs";
+const y = (s) => parseYamlSubset(s.replace(/^\n/, "").split("\n"));
+
+test("a list of maps, each item carrying several keys", () => {
+  assert.deepEqual(y(`
+decisions:
+  - id: audience
+    state: decided
+    value: "the operator, on a phone"
+  - id: length
+    state: open
+`), { decisions: [
+    { id: "audience", state: "decided", value: "the operator, on a phone" },
+    { id: "length", state: "open" },
+  ] });
+});
+
+test("a list may sit at the same indent as its key, as YAML allows", () => {
+  assert.deepEqual(y(`
+rejects:
+- hype
+- jargon
+`), { rejects: ["hype", "jargon"] });
+});
+
+test("maps nest to any depth, and a map inside a list item works", () => {
+  assert.deepEqual(y(`
+requirements:
+  - id: r1
+    check:
+      station: term-check
+      severity: fail
+resume:
+  next_action: write the outline
+`), {
+    requirements: [{ id: "r1", check: { station: "term-check", severity: "fail" } }],
+    resume: { next_action: "write the outline" },
+  });
+});
+
+test("a block scalar inside a list item keeps its lines", () => {
+  assert.deepEqual(y(`
+examples:
+  - path: goldens/a.md
+    why: |
+      the opening lands in one line
+      and the second line earns it
+`), { examples: [{ path: "goldens/a.md", why: "the opening lands in one line\nand the second line earns it" }] });
+});
+
+test("an inline list inside a nested map, and comments at any depth", () => {
+  assert.deepEqual(y(`
+feedback:
+  # where adopters push back
+  issues: https://example.com/issues
+  tags: [spec, writing]
+`), { feedback: { issues: "https://example.com/issues", tags: ["spec", "writing"] } });
+});
+
+test("a list of plain scalars nested inside a map", () => {
+  assert.deepEqual(y(`
+audience:
+  knows:
+    - git
+    - markdown
+`), { audience: { knows: ["git", "markdown"] } });
+});
+
+// The reader is a public entry point, so the standards built on superskill import THIS one
+// rather than copying it. Resolved by package name, the way an adopter would.
+test("the reader is importable as @supersuit/superskill/yaml", async () => {
+  const mod = await import("@supersuit/superskill/yaml");
+  assert.equal(typeof mod.parseYamlSubset, "function");
+  assert.equal(typeof mod.parseSkillFile, "function");
+});

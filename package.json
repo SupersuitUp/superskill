@@ -1,9 +1,13 @@
 {
   "name": "@supersuit/superskill",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Score any agent skill folder as skill, tested, or superskill. An open standard and a zero-dependency CLI.",
   "type": "module",
   "bin": { "superskill": "bin/superskill.mjs" },
+  "exports": {
+    "./yaml": "./src/frontmatter.mjs",
+    "./package.json": "./package.json"
+  },
   "files": ["bin/", "src/", "SPEC.md", "README.md", "CHANGELOG.md", "LICENSE"],
   "scripts": { "test": "node --test test/*.test.mjs" },
   "engines": { "node": ">=20" },

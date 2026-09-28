@@ -1,5 +1,6 @@
-// A small YAML frontmatter reader for the subset SKILL.md files use: scalars, quoted
-// strings, folded (>) and literal (|) blocks, one-level maps, inline and block lists.
+// A small YAML frontmatter reader for the subset SKILL.md files and hyperspecs use: scalars,
+// quoted strings, folded (>) and literal (|) blocks, maps and lists nested to any depth by
+// indentation, and inline lists.
 // Values stay strings; rules decide what a string means. Zero dependencies on purpose.
 
 export function parseSkillFile(text) {
@@ -22,55 +23,105 @@ export function parseSkillFile(text) {
 
 const indentOf = (l) => l.length - l.trimStart().length;
 
+// Nesting, added in 0.2.0: maps inside maps, lists of maps, lists inside maps, block scalars
+// at any depth, read by indentation. Until then the reader stopped at one level and IGNORED
+// anything deeper, so a list of maps came back as nothing and no error said so. Values still
+// stay strings. A stray indented line at the top level is still tolerated, as before.
 export function parseYamlSubset(lines) {
+  return parseMap(lines, 0, 0, true)[0];
+}
+
+const isBlank = (l) => !l.trim() || l.trimStart().startsWith("#");
+const isItem = (t) => t === "-" || t.startsWith("- ");
+const KEY = /^([^:\s"'][^:]*?|"[^"]*"|'[^']*')\s*:(?:\s+(.*)|\s*)$/;
+
+function nextContent(lines, i) {
+  while (i < lines.length && isBlank(lines[i])) i++;
+  return i;
+}
+
+function parseMap(lines, i, indent, top = false) {
   const out = {};
-  let i = 0;
   while (i < lines.length) {
+    if (isBlank(lines[i])) { i++; continue; }
     const line = lines[i];
-    if (!line.trim() || line.trimStart().startsWith("#")) { i++; continue; }
-    if (indentOf(line) > 0) { i++; continue; } // stray indented line: tolerate
-    const m = line.match(/^([^:\s][^:]*?)\s*:(?:\s+(.*)|\s*)$/);
+    const ind = indentOf(line);
+    if (ind < indent) break;
+    if (ind > indent) {
+      if (top) { i++; continue; } // stray indented line at the top: tolerate, as before
+      break;
+    }
+    const t = line.trim();
+    if (isItem(t)) break;
+    const m = t.match(KEY);
     if (!m) throw new Error(`cannot read line ${i + 1}: ${line.slice(0, 60)}`);
     const key = m[1].trim().replace(/^["']|["']$/g, "");
     const rest = (m[2] ?? "").trim();
     i++;
     if (/^[>|][+-]?$/.test(rest)) {
-      const block = [];
-      while (i < lines.length && (lines[i].trim() === "" || indentOf(lines[i]) > 0)) { block.push(lines[i]); i++; }
-      while (block.length && !block[block.length - 1].trim()) block.pop();
-      const min = Math.min(...block.filter((l) => l.trim()).map(indentOf));
-      const stripped = block.map((l) => l.slice(Number.isFinite(min) ? min : 0));
-      out[key] = rest[0] === "|" ? stripped.join("\n") : foldLines(stripped);
-      continue;
+      const [v, next] = readBlock(lines, i, ind, rest[0]);
+      out[key] = v; i = next; continue;
     }
     if (rest === "") {
-      const child = [];
-      while (i < lines.length && (lines[i].trim() === "" || indentOf(lines[i]) > 0 || lines[i].trimStart().startsWith("- "))) {
-        if (indentOf(lines[i]) === 0 && lines[i].trim() && !lines[i].startsWith("- ")) break;
-        child.push(lines[i]); i++;
+      const j = nextContent(lines, i);
+      if (j < lines.length) {
+        const ci = indentOf(lines[j]);
+        const ct = lines[j].trim();
+        if (ci > ind) { [out[key], i] = isItem(ct) ? parseList(lines, j, ci) : parseMap(lines, j, ci); continue; }
+        if (ci === ind && isItem(ct)) { [out[key], i] = parseList(lines, j, ci); continue; }
       }
-      const items = child.filter((l) => l.trim() && !l.trim().startsWith("#"));
-      if (!items.length) out[key] = "";
-      else if (items[0].trim().startsWith("- ") || items[0].trim() === "-") out[key] = items.map((l) => scalar(l.trim().replace(/^-\s*/, "")));
-      else {
-        const map = {};
-        const base = indentOf(items[0]);
-        for (const l of items) {
-          if (indentOf(l) !== base) continue; // deeper nesting is outside the subset; ignored
-          const mm = l.trim().match(/^([^:]+?)\s*:\s*(.*)$/);
-          if (mm) map[mm[1].trim().replace(/^["']|["']$/g, "")] = scalar(mm[2]);
-        }
-        out[key] = map;
-      }
-      continue;
+      out[key] = ""; continue;
     }
-    if (rest.startsWith("[") && rest.endsWith("]")) {
-      out[key] = splitInline(rest.slice(1, -1)).map(scalar).filter((s) => s !== "");
-      continue;
-    }
-    out[key] = scalar(rest);
+    out[key] = inlineOrScalar(rest);
   }
-  return out;
+  return [out, i];
+}
+
+function parseList(lines, i, indent) {
+  const out = [];
+  while (i < lines.length) {
+    if (isBlank(lines[i])) { i++; continue; }
+    const line = lines[i];
+    const ind = indentOf(line);
+    if (ind < indent) break;
+    if (ind > indent) { i++; continue; }
+    const t = line.trim();
+    if (!isItem(t)) break;
+    const content = t === "-" ? "" : t.slice(1).trimStart();
+    const at = line.indexOf(content, ind + 1); // where the item's content starts on the line
+    i++;
+    if (content === "") {
+      const j = nextContent(lines, i);
+      if (j < lines.length && indentOf(lines[j]) > ind) {
+        const ci = indentOf(lines[j]);
+        let v; [v, i] = isItem(lines[j].trim()) ? parseList(lines, j, ci) : parseMap(lines, j, ci);
+        out.push(v);
+      } else out.push("");
+      continue;
+    }
+    if (KEY.test(content) && !/^\[.*\]$/.test(content)) {
+      // "- key: value" opens a map whose keys sit where this content starts.
+      const sub = [" ".repeat(at) + content, ...lines.slice(i)];
+      const [v, used] = parseMap(sub, 0, at);
+      out.push(v); i += used - 1; continue;
+    }
+    out.push(inlineOrScalar(content));
+  }
+  return [out, i];
+}
+
+function readBlock(lines, i, keyIndent, style) {
+  const block = [];
+  while (i < lines.length && (lines[i].trim() === "" || indentOf(lines[i]) > keyIndent)) { block.push(lines[i]); i++; }
+  while (block.length && !block[block.length - 1].trim()) block.pop();
+  const min = Math.min(...block.filter((l) => l.trim()).map(indentOf));
+  const stripped = block.map((l) => l.slice(Number.isFinite(min) ? min : 0));
+  return [style === "|" ? stripped.join("\n") : foldLines(stripped), i];
+}
+
+function inlineOrScalar(rest) {
+  if (rest.startsWith("[") && rest.endsWith("]")) return splitInline(rest.slice(1, -1)).map(scalar).filter((s) => s !== "");
+  return scalar(rest);
 }
 
 function foldLines(lines) {
