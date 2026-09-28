@@ -1,0 +1,5 @@
+{"type":"summary","summary":"weekly status"}
+{"type":"user","message":{"role":"user","content":"Write my weekly status: shipped login and fixed the billing bug, both on project Atlas."},"uuid":"u1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Drafting."},{"type":"tool_use","id":"t1","name":"Read","input":{}}]},"uuid":"a1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]},"uuid":"u2"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"## Atlas\n- Shipped login.\n- Fixed the billing bug."}]},"uuid":"a2"}

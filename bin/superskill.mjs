@@ -5,6 +5,11 @@ import { DoctorError } from "../src/doctor.mjs";
 
 const COMMANDS = {
   doctor: "../src/commands/doctor.mjs",
+  init: "../src/commands/init.mjs",
+  miss: "../src/commands/miss.mjs",
+  misses: "../src/commands/miss.mjs",
+  fix: "../src/commands/fix.mjs",
+  approve: "../src/commands/approve.mjs",
 };
 
 const HELP = `superskill <command> [options]
