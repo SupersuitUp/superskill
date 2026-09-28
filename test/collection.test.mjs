@@ -29,7 +29,7 @@ test("--budget overrides the limit and reports the overflow", () => {
   assert.ok(r.budgets.every((b) => b.limit === 100 && b.over === r.total_chars - 100));
 });
 
-test("an entry over 1536 characters is named as cut off", () => {
+test("a description (plus when_to_use) over 1536 characters is named as cut off", () => {
   const r = collection([join(FIX, "skills")]);
   const cut = r.truncated.map((t) => t.name);
   assert.deepEqual(cut, [], "1100-char description fits the per-entry cap");
@@ -38,8 +38,8 @@ test("an entry over 1536 characters is named as cut off", () => {
   writeFileSync(join(root, "valid-basic", "SKILL.md"), `---\nname: valid-basic\ndescription: "Use when ${"x ".repeat(800)}"\n---\n`);
   const r2 = collection([root]);
   assert.deepEqual(r2.truncated.map((t) => t.name), ["valid-basic"]);
-  assert.ok(r2.truncated[0].chars > 1536);
-  assert.equal(r2.skills[0].listed_chars, 1536, "the listing counts only what the harness shows");
+  assert.ok(r2.truncated[0].chars > 1536, "chars counts description + when_to_use");
+  assert.equal(r2.skills[0].listed_chars, "valid-basic: ".length + 1536, "the listing counts only what the harness shows");
 });
 
 test("near-duplicate descriptions are flagged with near-miss suggestions both ways", () => {

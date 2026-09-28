@@ -9,7 +9,9 @@ import { defineRules } from "./define.mjs";
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TEXT_EXT = /\.(md|mdx|txt|mjs|cjs|js|ts|py|sh|bash|zsh|rb|json|ya?ml|toml)$/i;
 const DATA_DIRS = /^(evals|goldens)\//;
+const TEST_FILE = /(^|\/)(tests?|__tests__)\/|(^|\/)test_[^/]*\.py$|_test\.py$|\.test\.[cm]?[jt]s$|\.spec\.[cm]?[jt]s$/;
 const IGNORE = "superskill-ignore";
+const DATA_URI = /data:[a-z]+\/[a-z0-9+.-]+;base64,[A-Za-z0-9+/=]+/gi;
 
 const f = (severity, message, fix, extra = {}) => ({ severity, message, fix, ...extra });
 const broken = (ctx) => Boolean(ctx.error || ctx.parseError);
@@ -109,8 +111,9 @@ export const skillRules = defineRules([
     level: "skill",
     check(ctx) {
       if (broken(ctx)) return [];
-      return /<\/?[a-zA-Z][^>]*>/.test(str(ctx.data.description))
-        ? [f("fail", "description contains an XML/HTML tag", "Remove angle-bracket tags from the description.")]
+      const tag = str(ctx.data.description).match(/<\/?[a-zA-Z][^>]*>/);
+      return tag
+        ? [f("fail", `description contains an XML/HTML tag: ${tag[0]}`, "Remove angle brackets from the description (write a placeholder as {slug} or SLUG, not <slug>); skill descriptions must not contain XML tags.")]
         : [];
     },
   },
@@ -178,7 +181,9 @@ export const skillRules = defineRules([
       if (broken(ctx)) return [];
       const out = [];
       for (const p of instructionDocs(ctx)) {
-        if (p === "SKILL.md") continue;
+        // HDSOP.md is Freedom's workflow map, written for a person reviewing the process,
+        // not a reference an agent loads in part.
+        if (p === "SKILL.md" || p === "HDSOP.md") continue;
         const lines = (readText(ctx.dir, p) || "").split("\n");
         if (lines.length <= 100) continue;
         const head = lines.slice(0, 30);
@@ -194,9 +199,12 @@ export const skillRules = defineRules([
     check(ctx) {
       if (broken(ctx)) return [];
       const out = [];
-      const re = /(\/Users\/[A-Za-z0-9._-]|\/home\/[A-Za-z0-9._-]|\b[A-Z]:\\{1,2}[A-Za-z])/;
+      // The path must start the token (not "capture/home/Library") and name something
+      // ("/Users/..." as a placeholder in prose is not a path).
+      const re = /(^|[\s"'`(=:,[{<])(\/Users\/[A-Za-z0-9_]|\/home\/[A-Za-z0-9_]|[A-Z]:\\{1,2}[A-Za-z])/;
       for (const p of ctx.files) {
-        if (!TEXT_EXT.test(p) || DATA_DIRS.test(p)) continue;
+        // Tests use fake machine paths as data; they are not paths the skill depends on.
+        if (!TEXT_EXT.test(p) || DATA_DIRS.test(p) || TEST_FILE.test(p)) continue;
         const lines = (readText(ctx.dir, p) || "").split("\n");
         const hits = [];
         lines.forEach((l, i) => { if (re.test(l) && !l.includes(IGNORE)) hits.push(i + 1); });
@@ -222,7 +230,12 @@ export const skillRules = defineRules([
         const text = readText(ctx.dir, p) || "";
         const lines = text.split("\n");
         for (const [label, re, confirm] of patterns) {
-          const i = lines.findIndex((l) => { const m = l.match(re); return m && !l.includes(IGNORE) && (!confirm || confirm(m[0])); });
+          const i = lines.findIndex((l) => {
+            // An inline data: URI (an embedded image) is content, not a hidden payload.
+            const probe = l.replace(DATA_URI, "");
+            const m = probe.match(re);
+            return m && !l.includes(IGNORE) && (!confirm || confirm(m[0]));
+          });
           if (i >= 0) out.push(f("fail", `${p}:${i + 1} ${label}: "${lines[i].trim().slice(0, 80)}"`, "Remove it, or mark a deliberate example with `superskill-ignore` on the same line.", { file: p, line: i + 1 }));
         }
         const comments = text.matchAll(/<!--([\s\S]*?)-->/g);

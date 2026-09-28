@@ -7,9 +7,15 @@ import { join, relative, sep } from "node:path";
 import { findSkills } from "./doctor.mjs";
 import { loadSkill, listFiles } from "./context.mjs";
 
-/** Characters a harness shows per skill before cutting the entry off. */
+/**
+ * Characters of description + when_to_use a harness shows per skill before cutting it off.
+ * Claude Code documents this (code.claude.com/docs/en/skills, read 2026-09-28).
+ */
 export const ENTRY_CAP = 1536;
-/** Default listing budgets, in characters. Override with --budget. */
+/**
+ * Default whole-listing budgets, in characters. Neither vendor publishes this number (checked
+ * 2026-09-28), so it is a conservative default, and --budget overrides it.
+ */
 export const BUDGETS = { "claude-code": 8000, codex: 8000 };
 export const OVERLAP = 0.5;
 
@@ -17,10 +23,15 @@ const STOP = new Set(("a an and are as at be by can do does for from has have ho
   "so that the their them then there these this to use used uses using via was what when where which who will " +
   "with you your someone asks ask user users wants want skill skills not any all also one more other").split(" "));
 
-export function listingEntry(data) {
+/** The text a skill costs in the listing: its description plus when_to_use. */
+export function listingText(data) {
   const s = (v) => (typeof v === "string" ? v.trim() : "");
-  const tail = [s(data.description), s(data.when_to_use)].filter(Boolean).join(" ");
-  return `${s(data.name)}: ${tail}`;
+  return [s(data.description), s(data.when_to_use)].filter(Boolean).join(" ");
+}
+
+export function listingEntry(data) {
+  const name = typeof data.name === "string" ? data.name.trim() : "";
+  return `${name}: ${listingText(data)}`;
 }
 
 export function tokens(text) {
@@ -49,13 +60,14 @@ export function collection(paths, opts = {}) {
     seen.add(d);
     const ctx = loadSkill(d);
     const name = typeof ctx.data.name === "string" && ctx.data.name ? ctx.data.name : ctx.folderName;
-    const entry = listingEntry({ ...ctx.data, name });
-    skills.push({ name, path: d, chars: entry.length, listed_chars: Math.min(entry.length, ENTRY_CAP), description: typeof ctx.data.description === "string" ? ctx.data.description : "" });
+    const text = listingText(ctx.data);
+    const head = name.length + 2; // "name: "
+    skills.push({ name, path: d, chars: head + text.length, listed_chars: head + Math.min(text.length, ENTRY_CAP), description_chars: text.length, description: typeof ctx.data.description === "string" ? ctx.data.description : "" });
   }
   const total = skills.reduce((n, s) => n + s.listed_chars, 0);
   const limits = opts.budget ? Object.fromEntries(Object.keys(BUDGETS).map((k) => [k, Number(opts.budget)])) : BUDGETS;
   const budgets = Object.entries(limits).map(([harness, limit]) => ({ harness, limit, used: total, over: Math.max(0, total - limit) }));
-  const truncated = skills.filter((s) => s.chars > ENTRY_CAP).map((s) => ({ name: s.name, chars: s.chars, cut: s.chars - ENTRY_CAP }));
+  const truncated = skills.filter((s) => s.description_chars > ENTRY_CAP).map((s) => ({ name: s.name, chars: s.description_chars, cut: s.description_chars - ENTRY_CAP }));
 
   const threshold = opts.overlap ?? OVERLAP;
   const overlaps = [];

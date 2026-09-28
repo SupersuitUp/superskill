@@ -109,6 +109,8 @@ test("long-reference-toc warns on a long reference with no contents", () => {
   const withToc = "# Long\n\n## Contents\n- a\n" + ref;
   const dir2 = variant(fm(`name: valid-basic\n${GOOD_DESC}`, "See [r](references/long.md).\n"), { "references/long.md": withToc });
   assert.deepEqual(sev("long-reference-toc", dir2), []);
+  const dir3 = variant(fm(`name: valid-basic\n${GOOD_DESC}`), { "HDSOP.md": ref });
+  assert.deepEqual(sev("long-reference-toc", dir3), [], "Freedom's workflow map is for people, not a partial-load reference");
 });
 
 test("no-absolute-paths fails on a machine path in a bundled file", () => {
@@ -120,6 +122,15 @@ test("no-absolute-paths fails on a machine path in a bundled file", () => {
   assert.deepEqual(sev("no-absolute-paths", dir3), ["fail"], "/home/ fails, ~ does not");
 });
 
+test("no-absolute-paths ignores path fragments, prose placeholders and test files", () => {
+  const body = 'mirror = home / ".freedom/capture/home/Library/Messages/chat.db"\nworktree /Users/.../repo is a placeholder\n';
+  const dir = variant(fm(`name: valid-basic\n${GOOD_DESC}`, body), {
+    "scripts/tests/test_paths.py": 'env = {"HOME": "/home/x"}\n',
+    "scripts/paths.test.mjs": 'const p = "/Users/ann/x";\n',
+  });
+  assert.deepEqual(sev("no-absolute-paths", dir), []);
+});
+
 test("injection-scan fails on override phrases and hidden instructions", () => {
   const f = check("injection-scan", skill("injection"));
   assert.ok(f.length >= 2, "both the phrase and the hidden comment are reported");
@@ -128,6 +139,8 @@ test("injection-scan fails on override phrases and hidden instructions", () => {
   assert.deepEqual(sev("injection-scan", pipe), ["fail"]);
   const blob = variant(fm(`name: valid-basic\n${GOOD_DESC}`, "A".repeat(240) + "==\n"));
   assert.deepEqual(sev("injection-scan", blob), ["fail"]);
+  const img = variant(fm(`name: valid-basic\n${GOOD_DESC}`, "![chart](data:image/png;base64,iVBORw0KGgo" + "A".repeat(3000) + "==)\n"));
+  assert.deepEqual(sev("injection-scan", img), [], "an inline data:image is a picture, not a payload");
   const harmless = variant(fm(`name: valid-basic\n${GOOD_DESC}`, "<!-- TODO: tidy this section -->\n"));
   assert.deepEqual(sev("injection-scan", harmless), []);
 });

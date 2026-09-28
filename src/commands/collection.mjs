@@ -5,8 +5,10 @@ export const help = `superskill collection <folder...> [--budget <chars>] [--ove
 
 Check a set of skills together:
   - listing budget: characters of "name: description" the harness loads every turn,
-    against claude-code and codex budgets (8000 each by default; --budget overrides)
-  - cut-off entries: skills whose entry exceeds ${ENTRY_CAP} characters
+    against claude-code and codex budgets (8000 each by default, a conservative figure:
+    neither harness publishes one; --budget overrides)
+  - cut-off entries: skills whose description + when_to_use exceeds ${ENTRY_CAP} characters
+    (Claude Code's documented per-skill cap)
   - overlap: pairs whose descriptions share enough words (--overlap, default 0.5) that an
     agent could load the wrong one, each with a near-miss trigger to add to the other
   - plugin line (when the folder has .claude-plugin/plugin.json): version, changelog
@@ -28,7 +30,7 @@ export async function run(argv) {
   L.push(`${r.skills.length} skills, ${r.total_chars} listing characters`);
   for (const b of r.budgets) L.push(`  ${b.harness.padEnd(12)} ${b.used} / ${b.limit}${b.over ? `  OVER by ${b.over}` : "  ok"}`);
   if (r.truncated.length) {
-    L.push(`cut off (entry over ${ENTRY_CAP} characters):`);
+    L.push(`cut off (description over ${ENTRY_CAP} characters):`);
     for (const t of r.truncated) L.push(`  ${t.name}: ${t.chars} characters, ${t.cut} not shown`);
   }
   const top = [...r.skills].sort((x, y) => y.chars - x.chars).slice(0, 5);

@@ -71,14 +71,14 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 | `name-reserved-words` | fail | `name` contains neither `anthropic` nor `claude` |
 | `description-length` | fail | `description` is 1-1024 characters |
 | `description-has-trigger` | warn | `description` says when to use it (`when`, `trigger`, `for requests`), or `when_to_use` is set |
-| `description-no-xml` | fail | no `<tag>` in `description` |
+| `description-no-xml` | fail | no `<tag>` in `description`, placeholders like `<slug>` included (Anthropic's skill guidance forbids XML tags in the description) |
 | `compatibility-length` | fail | `compatibility`, if present, is at most 500 characters |
 | `metadata-string-map` | fail | `metadata`, if present, maps string keys to string values |
 | `body-lines` | fail | body after the frontmatter is at most 500 lines |
 | `body-tokens` | warn | body is at most about 5000 tokens (characters / 4) |
 | `references-one-deep` | fail | a markdown file linked from `SKILL.md` links on to no further local file |
-| `long-reference-toc` | warn | every markdown file over 100 lines has a table of contents in its first 30 lines (a line matching `/contents/i`, or three or more `- [x](#anchor)` lines) |
-| `no-absolute-paths` | fail | no bundled text file (outside `evals/` and `goldens/`) contains `/Users/<x>`, `/home/<x>` or `C:\<x>` |
+| `long-reference-toc` | warn | every markdown file over 100 lines (other than `SKILL.md` and Freedom's `HDSOP.md`) has a table of contents in its first 30 lines (a line matching `/contents/i`, or three or more `- [x](#anchor)` lines) |
+| `no-absolute-paths` | fail | no bundled text file (outside `evals/`, `goldens/` and test files such as `tests/`, `test_*.py`, `*.test.mjs`) contains a path starting `/Users/<name>`, `/home/<name>` or `C:\<name>` |
 | `injection-scan` | fail | no instruction file contains an override phrase ("ignore all previous instructions", "disregard the system prompt"), a download piped into a shell (`curl ... \| sh`), a base64-like run of 200+ characters, or an HTML comment that addresses the agent (`<!-- assistant: ...`) or pairs an action (send, read, upload, run...) with a secret or a URL |
 | `workflow-map` | info | a Freedom `HDSOP.md` is present (bonus, never required) |
 
@@ -203,9 +203,11 @@ A run passes when every expectation of its case passes; `pass_rate` is passing r
 `superskill collection` measures a set of skills together:
 
 - **Listing budget.** Each skill costs `name + ": " + description` (plus `when_to_use`) in the
-  listing a harness loads every turn, cut off at 1536 characters per entry. The total is
-  reported against a budget per harness (8000 characters for Claude Code and Codex by default).
-- **Cut-off entries.** Every skill whose entry exceeds 1536 characters.
+  listing a harness loads every turn, with the description part cut off at 1536 characters
+  (Claude Code's documented cap). The total is reported against a budget per harness: 8000
+  characters for Claude Code and Codex by default. Neither vendor published a whole-listing
+  figure as of 2026-09-28, so this default is deliberately conservative and `--budget` sets it.
+- **Cut-off entries.** Every skill whose `description` plus `when_to_use` exceeds 1536 characters.
 - **Overlap.** Pairs whose descriptions have a token Jaccard similarity of 0.5 or more after
   stopwords. Each flagged pair yields a near-miss query for each skill's `triggers.json`, so the
   fix is proven by the trigger evals rather than guessed.
