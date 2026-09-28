@@ -50,9 +50,10 @@ export function scoreSkill(dir, opts = {}) {
  */
 export function doctor(paths, opts = {}) {
   const target = opts.level || "skill";
-  const dirs = [];
+  let dirs = [];
   for (const p of paths) dirs.push(...findSkills(p));
-  if (!dirs.length) throw new DoctorError(`no skills found under ${paths.join(", ")} (looked for SKILL.md in the folder, its children, and skills/*/)`);
+  if (opts.only) dirs = dirs.filter((d) => opts.only.includes(d));
+  else if (!dirs.length) throw new DoctorError(`no skills found under ${paths.join(", ")} (looked for SKILL.md in the folder, its children, and skills/*/)`);
   const skills = [...new Set(dirs)].map((d) => scoreSkill(d, opts));
   const result = { target, ok: skills.every((s) => meets(s.level, target)), skills };
   if (paths.length === 1) {

@@ -11,6 +11,7 @@ const COMMANDS = {
   fix: "../src/commands/fix.mjs",
   approve: "../src/commands/approve.mjs",
   collection: "../src/commands/collection.mjs",
+  snippet: "../src/commands/snippet.mjs",
 };
 
 const HELP = `superskill <command> [options]
