@@ -14,6 +14,19 @@ const IGNORE = "superskill-ignore";
 const DATA_URI = /data:[a-z]+\/[a-z0-9+.-]+;base64,[A-Za-z0-9+/=]+/gi;
 
 const f = (severity, message, fix, extra = {}) => ({ severity, message, fix, ...extra });
+const FOLD_TOKENS = 5000;
+// A hard rule is shouted (NEVER, ALWAYS, MUST) or bolded as a command (**Never ...**).
+const HARD_RULE = { test: (l) => /\b(NEVER|ALWAYS|MUST|DO NOT|DON'T|REFUSES?)\b/.test(l) || /\*\*(never|always|do not|don't|refuse)\b/i.test(l) };
+
+/** Body lines tagged with whether they sit inside a code fence. */
+function proseLines(body) {
+  let fenced = false;
+  return body.split("\n").map((line) => {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; return { line, fenced: true }; }
+    return { line, fenced };
+  });
+}
+const normRule = (line) => line.toLowerCase().replace(/[*_`>#-]/g, "").replace(/\s+/g, " ").trim();
 const broken = (ctx) => Boolean(ctx.error || ctx.parseError);
 const str = (v) => (typeof v === "string" ? v : "");
 
@@ -139,22 +152,91 @@ export const skillRules = defineRules([
       return bad.length ? [f("fail", `metadata values must be strings: ${bad.join(", ")}`, "Quote each metadata value.")] : [];
     },
   },
+  // Length is never a defect on its own. A long skill that is well shaped costs tokens only
+  // when it is invoked; what actually breaks is a long skill in the wrong shape. After
+  // compaction Claude Code keeps only the first ~5,000 tokens of each invoked skill, so the
+  // three rules below check what survives that cut, whether an agent can find its way
+  // around, and whether anything is said twice.
   {
-    id: "body-lines",
-    level: "skill",
-    check(ctx) {
-      if (broken(ctx)) return [];
-      const n = ctx.body.replace(/\n+$/, "").split("\n").length;
-      return n > 500 ? [f("fail", `body is ${n} lines (limit 500)`, "Move detail into references/ files linked from SKILL.md.")] : [];
-    },
-  },
-  {
-    id: "body-tokens",
+    id: "body-size",
     level: "skill",
     check(ctx) {
       if (broken(ctx)) return [];
       const est = Math.round(ctx.body.length / 4);
-      return est > 5000 ? [f("warn", `body is about ${est} tokens (target 5000)`, "Move detail into references/ files that load only when needed.")] : [];
+      if (est <= FOLD_TOKENS) return [];
+      const n = ctx.body.replace(/\n+$/, "").split("\n").length;
+      return [f("info", `body is ${n} lines, about ${est} tokens; after compaction only the first ~${FOLD_TOKENS} survive`, "Fine if the hard rules sit above that point (see rules-above-the-fold).")];
+    },
+  },
+  {
+    id: "rules-above-the-fold",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const fold = FOLD_TOKENS * 4;
+      if (ctx.body.length <= fold) return [];
+      const above = new Set();
+      const late = [];
+      let offset = 0;
+      let lineNo = 0;
+      for (const { line, fenced } of proseLines(ctx.body)) {
+        lineNo++;
+        const pos = offset;
+        offset += line.length + 1;
+        if (fenced || !HARD_RULE.test(line)) continue;
+        const key = normRule(line);
+        if (!key) continue;
+        if (pos < fold) above.add(key);
+        else if (!above.has(key)) late.push({ lineNo, text: line.trim() });
+      }
+      if (!late.length) return [];
+      const shown = late.slice(0, 3).map((r) => `line ${r.lineNo}: ${r.text.slice(0, 80)}`).join("; ");
+      return [f("warn", `${late.length} hard rule(s) sit past the first ~${FOLD_TOKENS} tokens and would not survive compaction (${shown})`, "Restate them in a short Rules section near the top, or move them up. Length is fine; the rules just need to be above the fold.")];
+    },
+  },
+  {
+    id: "navigable",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const lines = proseLines(ctx.body);
+      if (lines.length <= 300) return [];
+      let run = 0, worst = 0, worstStart = 0, start = 1, i = 0;
+      for (const { line, fenced } of lines) {
+        i++;
+        if (!fenced && /^#{1,6}\s/.test(line)) { run = 0; start = i + 1; continue; }
+        run++;
+        if (run > worst) { worst = run; worstStart = start; }
+      }
+      return worst > 150
+        ? [f("warn", `${worst} lines run with no heading (from body line ${worstStart})`, "Break it up with headings so an agent can find the part it needs without reading all of it.")]
+        : [];
+    },
+  },
+  {
+    id: "no-repeated-paragraphs",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const seen = new Map();
+      const dups = [];
+      let para = [];
+      const flush = () => {
+        const text = para.join(" ").toLowerCase().replace(/[*_`>#-]/g, "").replace(/\s+/g, " ").trim();
+        para = [];
+        if (text.length < 100) return;
+        if (seen.has(text)) dups.push(text);
+        else seen.set(text, true);
+      };
+      for (const { line, fenced } of proseLines(ctx.body)) {
+        if (fenced) { flush(); continue; }
+        if (!line.trim() || /^#{1,6}\s/.test(line)) flush();
+        else para.push(line);
+      }
+      flush();
+      return dups.length
+        ? [f("warn", `${dups.length} paragraph(s) appear more than once (first: "${dups[0].slice(0, 70)}...")`, "Keep one copy and point to it; two copies drift apart the first time one is edited.")]
+        : [];
     },
   },
   {

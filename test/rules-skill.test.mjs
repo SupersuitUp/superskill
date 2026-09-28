@@ -89,13 +89,53 @@ test("metadata-string-map fails when metadata is not a map", () => {
   assert.deepEqual(sev("metadata-string-map", variant(fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  - a`))), ["fail"]);
 });
 
-test("body-lines fails over 500 lines", () => {
-  assert.deepEqual(sev("body-lines", skill("huge-body")), ["fail"]);
+test("length alone is never a failure: a 620-line skill still reaches the skill level", () => {
+  const ctx = loadSkill(skill("huge-body"));
+  const fails = runRules(ctx, skillRules, { now: NOW }).filter((f) => f.severity === "fail");
+  assert.deepEqual(fails, []);
+  assert.ok(!skillRules.some((r) => r.id === "body-lines"), "the line-count rule is retired");
 });
 
-test("body-tokens warns over ~5000 estimated tokens", () => {
-  const body = ("word ".repeat(80) + "\n").repeat(60); // 24,060 chars, 60 lines
-  assert.deepEqual(sev("body-tokens", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body))), ["warn"]);
+const filler = (n, word = "context") => Array.from({ length: n }, (_, i) => `${word} line ${i} explains a detail of the procedure in plain words.`).join("\n");
+
+test("body-size reports cost as info past the compaction window, never warn or fail", () => {
+  const body = "# Big\n" + filler(600);
+  assert.deepEqual(sev("body-size", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body))), ["info"]);
+  assert.deepEqual(sev("body-size", skill("valid-basic")), []);
+});
+
+test("rules-above-the-fold warns when a hard rule sits past the first ~5000 tokens", () => {
+  const body = "# Big\n" + filler(400) + "\n\n## Late rules\n\n**NEVER send without the operator's yes.**\n";
+  const found = check("rules-above-the-fold", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body)));
+  assert.deepEqual(found.map((f) => f.severity), ["warn"]);
+  assert.match(found[0].message, /NEVER send without/);
+});
+
+test("rules-above-the-fold is quiet when the late rule is restated near the top", () => {
+  const rule = "**NEVER send without the operator's yes.**";
+  const body = `# Big\n\n## Rules\n\n${rule}\n\n` + filler(400) + `\n\n## Late rules\n\n${rule}\n`;
+  assert.deepEqual(sev("rules-above-the-fold", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body))), []);
+});
+
+test("rules-above-the-fold ignores short skills and rules inside code fences", () => {
+  assert.deepEqual(sev("rules-above-the-fold", variant(fm(`name: valid-basic\n${GOOD_DESC}`, "# S\n\nNEVER do X.\n"))), []);
+  const body = "# Big\n" + filler(400) + "\n\n```\n# NEVER edit this generated file\n```\n";
+  assert.deepEqual(sev("rules-above-the-fold", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body))), []);
+});
+
+test("navigable warns on a long stretch with no heading, and not when headings break it up", () => {
+  const flat = "# Big\n" + filler(320);
+  assert.deepEqual(sev("navigable", variant(fm(`name: valid-basic\n${GOOD_DESC}`, flat))), ["warn"]);
+  const sectioned = Array.from({ length: 4 }, (_, i) => `## Part ${i}\n\n` + filler(90)).join("\n\n");
+  assert.deepEqual(sev("navigable", variant(fm(`name: valid-basic\n${GOOD_DESC}`, sectioned))), []);
+});
+
+test("no-repeated-paragraphs warns when the same paragraph appears twice", () => {
+  const para = "When the operator is away from the desk, put the draft on the review page and text the link, because a phone collapses prose above a board.";
+  const body = `# S\n\n${para}\n\n## Later\n\n${para}\n`;
+  const found = check("no-repeated-paragraphs", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body)));
+  assert.deepEqual(found.map((f) => f.severity), ["warn"]);
+  assert.deepEqual(sev("no-repeated-paragraphs", skill("valid-basic")), []);
 });
 
 test("references-one-deep fails on a chained reference", () => {

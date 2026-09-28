@@ -2,6 +2,8 @@
 
 ## 0.1.0 (2026-09-28)
 
+- Length is not a defect. The 500-line `body-lines` failure and the `body-tokens` warning are replaced by `body-size` (info), `rules-above-the-fold`, `navigable` and `no-repeated-paragraphs`, which check what goes wrong in a long skill rather than its length.
+
 First release of the standard ([SPEC.md](SPEC.md) v0.1.0) and its checker.
 
 - `doctor`: scores a skill, a folder of skills, or a plugin as skill / tested / superskill, with

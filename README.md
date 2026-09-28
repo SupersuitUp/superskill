@@ -33,7 +33,7 @@ file error. `--json` prints one JSON document and nothing else.
 ## The levels
 
 1. **skill**: a valid `SKILL.md` (name matches the folder, description of 1024 characters or
-   fewer that says when to use it, body under 500 lines), references one level deep, no
+   fewer that says when to use it, hard rules above the compaction fold, headings in long bodies, nothing said twice), references one level deep, no
    hard-coded machine paths, nothing that reads like a prompt injection.
 2. **tested**: at least three task evals with checks a machine can verify, and a trigger set of
    at least ten requests, some that should load the skill and some near-misses that should not.

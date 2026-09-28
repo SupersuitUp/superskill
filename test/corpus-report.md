@@ -66,3 +66,7 @@ The truncation suspicion, as a number: no skill in either corpus is cut off per 
 listing as a whole is 7.5 to 12.7 times the conservative 8,000-character default. Neither vendor
 publishes a whole-listing budget, so whether that means skills are dropped from the listing is
 not settled by this report.
+
+## Rerun 2026-09-28 after the length rules changed
+
+freedom-dev: 101 skills, 89 at level skill, 12 none (description-no-xml 9, description-length 3). Warnings: rules-above-the-fold 11, navigable 4, no-repeated-paragraphs 1. The 500-line failure is gone; length alone no longer fails anything.

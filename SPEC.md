@@ -74,8 +74,10 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 | `description-no-xml` | fail | no `<tag>` in `description`, placeholders like `<slug>` included (Anthropic's skill guidance forbids XML tags in the description) |
 | `compatibility-length` | fail | `compatibility`, if present, is at most 500 characters |
 | `metadata-string-map` | fail | `metadata`, if present, maps string keys to string values |
-| `body-lines` | fail | body after the frontmatter is at most 500 lines |
-| `body-tokens` | warn | body is at most about 5000 tokens (characters / 4) |
+| `body-size` | info | reports lines and estimated tokens (characters / 4) once the body passes about 5000 tokens. Length alone is never a defect. |
+| `rules-above-the-fold` | warn | in a body past about 5000 tokens, every hard rule (a shouted NEVER, ALWAYS, MUST, DO NOT, REFUSE, or a bolded **Never ...** command, outside code fences) appears in the first 5000 tokens, either there or restated there. After compaction Claude Code keeps only that much of each invoked skill. |
+| `navigable` | warn | a body over 300 lines has no run of more than 150 lines without a heading |
+| `no-repeated-paragraphs` | warn | no paragraph of 100+ characters appears twice |
 | `references-one-deep` | fail | a markdown file linked from `SKILL.md` links on to no further local file |
 | `long-reference-toc` | warn | every markdown file over 100 lines (other than `SKILL.md` and Freedom's `HDSOP.md`) has a table of contents in its first 30 lines (a line matching `/contents/i`, or three or more `- [x](#anchor)` lines) |
 | `no-absolute-paths` | fail | no bundled text file (outside `evals/`, `goldens/` and test files such as `tests/`, `test_*.py`, `*.test.mjs`) contains a path starting `/Users/<name>`, `/home/<name>` or `C:\<name>` |
