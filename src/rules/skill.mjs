@@ -191,7 +191,7 @@ export const skillRules = defineRules([
       }
       if (!late.length) return [];
       const shown = late.slice(0, 3).map((r) => `line ${r.lineNo}: ${r.text.slice(0, 80)}`).join("; ");
-      return [f("warn", `${late.length} hard rule(s) sit past the first ~${FOLD_TOKENS} tokens and would not survive compaction (${shown})`, "Restate them in a short Rules section near the top, or move them up. Length is fine; the rules just need to be above the fold.")];
+      return [f("warn", `${late.length} hard rule(s) sit past the first ~${FOLD_TOKENS} tokens and would not survive compaction (${shown})`, "Restate them in a short Rules section near the top, or move them up. Length is fine; the rules just need to be above the fold. Step-specific detail can move into step files (steps/<step>.md) that are read fresh when the step comes up.")];
     },
   },
   {
@@ -209,7 +209,7 @@ export const skillRules = defineRules([
         if (run > worst) { worst = run; worstStart = start; }
       }
       return worst > 150
-        ? [f("warn", `${worst} lines run with no heading (from body line ${worstStart})`, "Break it up with headings so an agent can find the part it needs without reading all of it.")]
+        ? [f("warn", `${worst} lines run with no heading (from body line ${worstStart})`, "Break it up with headings, or move a step's detail into its own step file (steps/<step>.md) and leave a pointer that says when to read it: \"Before step 4, read steps/4-reconcile.md.\"")]
         : [];
     },
   },
@@ -252,6 +252,26 @@ export const skillRules = defineRules([
         const chained = localLinks(text, ref).filter((p) => p !== "SKILL.md" && !direct.has(p) && isFile(ctx.dir, p));
         if (chained.length)
           out.push(f("fail", `${ref} links on to ${chained.join(", ")} (references must be one level deep)`, `Link ${chained[0]} directly from SKILL.md, or fold it into ${ref}.`, { file: ref }));
+      }
+      return out;
+    },
+  },
+  {
+    // A step file only works if the agent knows when to open it: a bare link gets skipped
+    // or read in part. The pointer line has to carry the condition.
+    id: "reference-says-when",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const out = [];
+      for (const { line, fenced } of proseLines(ctx.body)) {
+        if (fenced) continue;
+        for (const target of localLinks(line, "SKILL.md")) {
+          if (!/\.mdx?$/i.test(target) || !isFile(ctx.dir, target)) continue;
+          const words = line.replace(/\[[^\]]*\]\([^)]*\)/g, " ");
+          if (!/\b(when|before|after|if|during|for|to|while|once|read|load|follow)\b/i.test(words))
+            out.push(f("warn", `SKILL.md links ${target} without saying when to read it`, `Put the condition on the pointer line: "Before <step>, read ${target}." or "For <case>, see ${target}."`, { file: target }));
+        }
       }
       return out;
     },

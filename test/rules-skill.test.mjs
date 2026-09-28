@@ -138,6 +138,23 @@ test("no-repeated-paragraphs warns when the same paragraph appears twice", () =>
   assert.deepEqual(sev("no-repeated-paragraphs", skill("valid-basic")), []);
 });
 
+test("reference-says-when warns on a bare link to an instruction file", () => {
+  const ref = { "steps/reconcile.md": "# Reconcile\n\nDo the thing.\n" };
+  const bare = variant(fm(`name: valid-basic\n${GOOD_DESC}`, "# S\n\n- [reconcile](steps/reconcile.md)\n"), ref);
+  const found = check("reference-says-when", bare);
+  assert.deepEqual(found.map((f) => f.severity), ["warn"]);
+  assert.match(found[0].message, /steps\/reconcile\.md/);
+  const cued = variant(fm(`name: valid-basic\n${GOOD_DESC}`, "# S\n\n4. Before reconciling, read [reconcile](steps/reconcile.md).\n"), ref);
+  assert.deepEqual(sev("reference-says-when", cued), []);
+  assert.deepEqual(sev("reference-says-when", skill("valid-basic")), []);
+});
+
+test("long-skill fixes point at step files", () => {
+  const body = "# Big\n" + filler(320);
+  const [n] = check("navigable", variant(fm(`name: valid-basic\n${GOOD_DESC}`, body)));
+  assert.match(n.fix, /step file|steps\//);
+});
+
 test("references-one-deep fails on a chained reference", () => {
   assert.deepEqual(sev("references-one-deep", skill("deep-refs")), ["fail"]);
 });

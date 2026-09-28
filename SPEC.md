@@ -76,6 +76,7 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 | `metadata-string-map` | fail | `metadata`, if present, maps string keys to string values |
 | `body-size` | info | reports lines and estimated tokens (characters / 4) once the body passes about 5000 tokens. Length alone is never a defect. |
 | `rules-above-the-fold` | warn | in a body past about 5000 tokens, every hard rule (a shouted NEVER, ALWAYS, MUST, DO NOT, REFUSE, or a bolded **Never ...** command, outside code fences) appears in the first 5000 tokens, either there or restated there. After compaction Claude Code keeps only that much of each invoked skill. |
+| `reference-says-when` | warn | every link from SKILL.md to a markdown file sits on a line that says when to read it (before, when, if, for, read ...). Step files (`steps/<step>.md`) are the recommended way to keep a long skill's detail out of the always-loaded body: they are read fresh when the step comes up, so compaction does not lose them. |
 | `navigable` | warn | a body over 300 lines has no run of more than 150 lines without a heading |
 | `no-repeated-paragraphs` | warn | no paragraph of 100+ characters appears twice |
 | `references-one-deep` | fail | a markdown file linked from `SKILL.md` links on to no further local file |
