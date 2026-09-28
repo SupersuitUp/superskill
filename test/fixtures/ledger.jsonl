@@ -1,0 +1,4 @@
+{"id":"inv_a","skill":"valid-basic","started":"2026-09-20T10:00:00Z","outcome":"succeeded_with_rescues","user_turns":1,"tool_failures":0,"interventions":[{"kind":"taste","note":"prefer shorter lines"}],"errors":[]}
+{"id":"inv_b","skill":"valid-basic","started":"2026-09-21T10:00:00Z","outcome":"succeeded_with_rescues","user_turns":1,"tool_failures":0,"interventions":[{"kind":"correction","what":"grouped by date instead of project"}],"errors":[]}
+{"id":"inv_c","skill":"valid-basic","started":"2026-09-22T10:00:00Z","outcome":"failed","user_turns":0,"tool_failures":2,"interventions":[],"errors":["template not found"]}
+{"id":"inv_d","skill":"valid-basic","started":"2026-09-23T10:00:00Z","outcome":"one_shot","user_turns":0,"tool_failures":0,"interventions":[],"errors":[]}
