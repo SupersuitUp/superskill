@@ -1,0 +1,9 @@
+{
+  "run_at": "2025-06-01T10:00:00Z",
+  "harness": "claude",
+  "model": "claude-opus-5-5",
+  "cases": 4,
+  "with_skill": { "pass_rate": 1.0, "mean_ms": 21000, "mean_tokens": 4100 },
+  "without_skill": { "pass_rate": 0.33, "mean_ms": 18000, "mean_tokens": 3900 },
+  "per_case": []
+}

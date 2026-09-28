@@ -1,0 +1,14 @@
+[
+  { "query": "write my weekly status from these tasks", "should_trigger": true },
+  { "query": "can you do a status update for my manager, here's what I finished", "should_trigger": true },
+  { "query": "weekly summary pls: shipped X, fixed Y", "should_trigger": true },
+  { "query": "turn this done list into a note for my boss", "should_trigger": true },
+  { "query": "friday update from my completed tickets", "should_trigger": true },
+  { "query": "what did I get done this week, write it up", "should_trigger": true },
+  { "query": "write a status page for our API uptime", "should_trigger": false },
+  { "query": "schedule my weekly 1:1 with my manager", "should_trigger": false },
+  { "query": "summarize this PDF about quarterly revenue", "should_trigger": false },
+  { "query": "make a to-do list for next week", "should_trigger": false },
+  { "query": "draft an email declining the meeting", "should_trigger": false },
+  { "query": "what's the weather this week", "should_trigger": false }
+]

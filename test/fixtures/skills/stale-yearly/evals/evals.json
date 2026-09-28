@@ -1,0 +1,9 @@
+{
+  "skill_name": "stale-yearly",
+  "evals": [
+    { "id": 1, "prompt": "Here are my finished tasks: shipped login, fixed billing bug. Write my weekly status.", "expected_output": "A grouped status note", "files": [], "expectations": ["contains:login", "The note is written in past tense"] },
+    { "id": 2, "prompt": "status note for my boss: closed 3 tickets on project Atlas", "expected_output": "One Atlas section", "files": [], "expectations": ["regex:(?i)atlas"] },
+    { "id": 3, "prompt": "Summarize this week: onboarding doc drafted", "expected_output": "One line", "files": [], "expectations": ["contains:onboarding"] },
+    { "id": "m1", "prompt": "status for: fixed bug in Atlas, fixed bug in Atlas", "expected_output": "Duplicate tasks are merged into one line", "files": [], "expectations": ["regex:^(?![\\s\\S]*Atlas[\\s\\S]*Atlas)"] }
+  ]
+}
