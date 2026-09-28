@@ -45,12 +45,19 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # MUST MATCH the "Environment name" on npm's trusted-publisher record for this package.
-    # npm checks the environment claim inside the OIDC token, so a record naming an
+    # npm checks the environment claim inside the OIDC token, so a record that NAMES an
     # environment the job does not declare fails as ENEEDAUTH, with nothing said about
-    # environments. docusaurus-preset-wiki's record says `blank` (typed into the field on
-    # 2026-09-15). This package's record does not exist yet: when it is created on npm, type
-    # `blank` into the Environment name field, or change this line to match what was typed.
+    # environments. This package's record names none: it was created on 2026-09-28 with
+    #     npm trust github @supersuit/superskill --file publish.yml \
+    #       --repo SupersuitUp/superskill --allow-publish --allow-stage-publish
+    # and `npm trust list @supersuit/superskill` shows no environment, so any value here
+    # passes. `blank` is kept to match docusaurus-preset-wiki, whose record also names none
+    # and which has published every release through this exact shape. If a record is ever
+    # given an environment, this line must change to match it in the same sitting.
+    #
+    # The FIRST publish of a new package cannot go through this workflow: npm attaches a
+    # trusted publisher to an existing package, so 0.1.0 was published by hand (web 2FA)
+    # and the record created right after. Every release since is a tag push.
     environment: blank
     steps:
       - uses: actions/checkout@v5
