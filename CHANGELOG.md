@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 (2026-09-28)
+
+- An unquoted value that is only a comment now reads as empty, which is what YAML means. Before
+  this, `source: # TODO` came back as the string "# TODO" and a list item written as `- # none
+  yet` came back as "# none yet", so a downstream linter counted a comment placeholder as a
+  filled-in field and passed specs it should have failed. A comment-only value followed by a
+  more-indented block still opens that nested map or list, exactly as it did with no comment.
+  Quoted values are untouched: `key: "# literal"` still reads as "# literal".
+
 ## 0.2.0 (2026-09-28)
 
 - The frontmatter reader reads nesting: maps inside maps, lists of maps, lists inside maps, and

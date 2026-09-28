@@ -27,6 +27,10 @@ const indentOf = (l) => l.length - l.trimStart().length;
 // at any depth, read by indentation. Until then the reader stopped at one level and IGNORED
 // anything deeper, so a list of maps came back as nothing and no error said so. Values still
 // stay strings. A stray indented line at the top level is still tolerated, as before.
+// 0.2.1: an unquoted value or list item that is only a comment (`key: # TODO`, `- # none yet`)
+// reads as empty, the same as no value at all, which is what YAML means. A comment-only value
+// that is followed by a more-indented block still opens that nested map or list, exactly as
+// `key:` with nothing after it does.
 export function parseYamlSubset(lines) {
   return parseMap(lines, 0, 0, true)[0];
 }
@@ -62,7 +66,7 @@ function parseMap(lines, i, indent, top = false) {
       const [v, next] = readBlock(lines, i, ind, rest[0]);
       out[key] = v; i = next; continue;
     }
-    if (rest === "") {
+    if (rest === "" || rest.startsWith("#")) {
       const j = nextContent(lines, i);
       if (j < lines.length) {
         const ci = indentOf(lines[j]);
@@ -90,7 +94,7 @@ function parseList(lines, i, indent) {
     const content = t === "-" ? "" : t.slice(1).trimStart();
     const at = line.indexOf(content, ind + 1); // where the item's content starts on the line
     i++;
-    if (content === "") {
+    if (content === "" || content.startsWith("#")) {
       const j = nextContent(lines, i);
       if (j < lines.length && indentOf(lines[j]) > ind) {
         const ci = indentOf(lines[j]);

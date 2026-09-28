@@ -141,3 +141,44 @@ test("the reader is importable as @supersuit/superskill/yaml", async () => {
   assert.equal(typeof mod.parseYamlSubset, "function");
   assert.equal(typeof mod.parseSkillFile, "function");
 });
+
+// ── Comment-only values (0.2.1) ──
+// An unquoted value that is only a YAML comment means the same as no value at all. Before this,
+// `source: # TODO` came back as the string "# TODO" and `- # none yet` came back as "# none yet",
+// so a downstream linter counted a placeholder comment as a filled-in field.
+
+test("an unquoted value that is only a comment reads as empty", () => {
+  assert.deepEqual(y(`
+source: # TODO
+`), { source: "" });
+});
+
+test("a comment after the colon does not block a nested block from being read", () => {
+  assert.deepEqual(y(`
+metadata: # see below
+  cadence: weekly
+  author: Ann
+`), { metadata: { cadence: "weekly", author: "Ann" } });
+});
+
+test("a list item that is only a comment reads as empty", () => {
+  assert.deepEqual(y(`
+notes:
+  - # none yet
+  - real note
+`), { notes: ["", "real note"] });
+});
+
+test("a quoted value that looks like a comment is untouched", () => {
+  assert.deepEqual(y(`
+a: "# literal"
+b: '# x'
+`), { a: "# literal", b: "# x" });
+});
+
+test("a trailing comment is still stripped, and a bare hash with no space is still part of the value", () => {
+  assert.deepEqual(y(`
+c: value # trailing comment
+d: a#b
+`), { c: "value", d: "a#b" });
+});
