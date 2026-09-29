@@ -110,6 +110,16 @@ function parseList(lines, i, indent) {
       } else out.push("");
       continue;
     }
+    if (content.startsWith("{") || content.startsWith("[")) {
+      // A bare flow map/list item (`- { station: fine, severity: fail }`, `- [a, b]`) is not a
+      // "- key: value" line, even though the KEY regex below would happily match on the first
+      // colon inside the braces (reading "{ station" as the key, which produced garbage). Try
+      // the flow parse first; when it is malformed, `inlineOrScalar` falls back to the raw
+      // string via `scalar()`, same as an unrecognized top-level value always has. Either way
+      // this never falls through to the "- key: value" submap heuristic below, because a flow
+      // collection's opening bracket can never legitimately be a map key.
+      out.push(inlineOrScalar(content)); continue;
+    }
     if (KEY.test(content) && !/^\[.*\]$/.test(content)) {
       // "- key: value" opens a map whose keys sit where this content starts.
       const sub = [" ".repeat(at) + content, ...lines.slice(i)];
