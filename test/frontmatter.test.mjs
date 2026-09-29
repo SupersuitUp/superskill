@@ -269,3 +269,56 @@ min: 600
 name: "quoted value"
 `), { min: "600", name: "quoted value" });
 });
+
+// ── A bare flow map/list as a list item's whole content (0.2.2, second pass) ──
+// `- { station: fine, severity: fail }` used to be caught by the same heuristic that opens a
+// block submap for `- key: value`, because the KEY regex happily matches on the first colon
+// inside the braces (treating "{ station" as the key). The item came back as
+// `{ "{ station": "fine, severity: fail }" }` instead of an object. `- [a, b]` already worked
+// (no colon, so the KEY regex never matched), kept here for symmetry.
+
+test("a bare inline flow map as a list item reads as an object", () => {
+  assert.deepEqual(y(`
+checks:
+  - { station: fine, severity: fail }
+`), { checks: [{ station: "fine", severity: "fail" }] });
+});
+
+test("several bare inline flow map items in one list", () => {
+  assert.deepEqual(y(`
+checks:
+  - { station: fine, severity: fail }
+  - { station: other, severity: warn }
+`), { checks: [
+    { station: "fine", severity: "fail" },
+    { station: "other", severity: "warn" },
+  ] });
+});
+
+test("a bare inline flow map list item with a nested inline list inside it", () => {
+  assert.deepEqual(y(`
+checks:
+  - { uses: [a, b], never: [c] }
+`), { checks: [{ uses: ["a", "b"], never: ["c"] }] });
+});
+
+test("a bare inline flow list as a list item reads as a list, for symmetry", () => {
+  assert.deepEqual(y(`
+checks:
+  - [a, b]
+`), { checks: [["a", "b"]] });
+});
+
+test("a malformed bare inline flow map list item does not throw, and returns the raw string", () => {
+  assert.deepEqual(y(`
+checks:
+  - { a: b
+`), { checks: ["{ a: b"] });
+});
+
+test("- key: { ... } still opens a block submap, not a bare flow map", () => {
+  assert.deepEqual(y(`
+requirements:
+  - check: { station: term-check, severity: fail }
+`), { requirements: [{ check: { station: "term-check", severity: "fail" } }] });
+});

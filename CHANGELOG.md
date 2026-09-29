@@ -13,6 +13,11 @@
   bracket, brace or hash inside a quoted value inside a flow collection stays text
   (`{ note: "a, b] } # c" }`). Malformed flow syntax (unbalanced brackets) still never throws: it
   falls back to the raw string, same as an unrecognized value always has.
+- A block list item that is itself a bare inline flow map or list (`- { station: fine, severity:
+  fail }`, `- [a, b]`) now reads as an object or a list. Before this, the KEY regex that decides
+  whether `- key: value` opens a block submap matched on the first colon inside the braces
+  (reading `"{ station"` as the key), so the item came back as `{ "{ station": "fine, severity:
+  fail }" }`. `- key: { ... }` still opens a block submap as before.
 
 ## 0.2.1 (2026-09-28)
 
