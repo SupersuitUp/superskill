@@ -182,3 +182,90 @@ c: value # trailing comment
 d: a#b
 `), { c: "value", d: "a#b" });
 });
+
+// ── Inline flow maps and comment-after-list (0.2.2) ──
+// `scope: { form: essay, audience: builders, purpose: persuade }` and `check: { station: ... }`
+// came back as the whole `{ ... }` string instead of an object. And `conditions: [r1, r2, r3]   #
+// 5 to 10 ids` came back as a string instead of a list, because the inline-list check required
+// the value to END in `]` and a trailing comment broke that.
+
+test("an inline flow map reads as an object", () => {
+  assert.deepEqual(y(`
+scope: { form: essay, audience: builders, purpose: persuade }
+`), { scope: { form: "essay", audience: "builders", purpose: "persuade" } });
+});
+
+test("an inline flow map with a single key and a multi-word value", () => {
+  assert.deepEqual(y(`
+check: { station: every segment carries a label }
+`), { check: { station: "every segment carries a label" } });
+});
+
+test("an inline flow list inside an inline flow map", () => {
+  assert.deepEqual(y(`
+speech: { uses: [a, b], never: [c] }
+`), { speech: { uses: ["a", "b"], never: ["c"] } });
+});
+
+test("an inline flow map inside an inline flow map", () => {
+  assert.deepEqual(y(`
+scope: { form: essay, check: { station: term-check, severity: fail } }
+`), { scope: { form: "essay", check: { station: "term-check", severity: "fail" } } });
+});
+
+test("an inline flow list followed by a same-line comment reads as a list", () => {
+  assert.deepEqual(y(`
+conditions: [r1, r2, r3]   # 5 to 10 ids
+`), { conditions: ["r1", "r2", "r3"] });
+});
+
+test("an inline flow map followed by a same-line comment reads as an object", () => {
+  assert.deepEqual(y(`
+scope: { form: essay, audience: builders }   # decided
+`), { scope: { form: "essay", audience: "builders" } });
+});
+
+test("quotes inside a flow map protect commas, brackets, braces and hashes", () => {
+  assert.deepEqual(y(`
+note: { text: "a, b] } # c", other: 'd, e} # f' }
+`), { note: { text: "a, b] } # c", other: "d, e} # f" } });
+});
+
+test("quotes inside a flow list protect commas, brackets, braces and hashes", () => {
+  assert.deepEqual(y(`
+items: ["a, b", 'c] d # e', plain]
+`), { items: ["a, b", "c] d # e", "plain"] });
+});
+
+test("an empty inline flow map and an empty inline flow list", () => {
+  assert.deepEqual(y(`
+a: {}
+b: []
+`), { a: {}, b: [] });
+});
+
+test("malformed flow syntax (unbalanced braces) does not throw, and returns the raw string", () => {
+  assert.deepEqual(y(`
+bad: { form: essay, audience: builders
+`), { bad: "{ form: essay, audience: builders" });
+});
+
+test("malformed flow syntax (unbalanced brackets) does not throw, and returns the raw string", () => {
+  assert.deepEqual(y(`
+bad: [r1, r2, r3
+`), { bad: "[r1, r2, r3" });
+});
+
+test("an inline flow map as a list item's key: value still works, via the existing submap path", () => {
+  assert.deepEqual(y(`
+requirements:
+  - check: { station: term-check, severity: fail }
+`), { requirements: [{ check: { station: "term-check", severity: "fail" } }] });
+});
+
+test("existing scalar rules are untouched: numbers stay strings, quoted scalars keep content", () => {
+  assert.deepEqual(y(`
+min: 600
+name: "quoted value"
+`), { min: "600", name: "quoted value" });
+});

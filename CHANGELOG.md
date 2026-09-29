@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.2 (2026-09-29)
+
+- An inline flow map (`scope: { form: essay, audience: builders, purpose: persuade }`, `check: {
+  station: every segment carries a label }`) now reads as an object instead of the whole `{ ...
+  }` coming back as a string. Nested inline maps and inline lists inside inline maps work too
+  (`speech: { uses: [a, b], never: [c] }`).
+- An inline flow list followed by a same-line comment (`conditions: [r1, r2, r3]   # 5 to 10
+  ids`) now reads as a list. Before this, the inline-list check required the raw value to END in
+  `]`, and a trailing comment broke that, so the whole line came back as a string.
+- Both are read by a quote-aware character scanner rather than a naive split, so a comma,
+  bracket, brace or hash inside a quoted value inside a flow collection stays text
+  (`{ note: "a, b] } # c" }`). Malformed flow syntax (unbalanced brackets) still never throws: it
+  falls back to the raw string, same as an unrecognized value always has.
+
 ## 0.2.1 (2026-09-28)
 
 - An unquoted value that is only a comment now reads as empty, which is what YAML means. Before
