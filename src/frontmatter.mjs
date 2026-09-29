@@ -31,6 +31,13 @@ const indentOf = (l) => l.length - l.trimStart().length;
 // reads as empty, the same as no value at all, which is what YAML means. A comment-only value
 // that is followed by a more-indented block still opens that nested map or list, exactly as
 // `key:` with nothing after it does.
+// 0.2.2: an inline flow map (`scope: { form: essay, audience: builders }`) reads as an object,
+// nested to any depth (a flow map inside a flow map, a flow list inside a flow map). And an
+// inline flow list followed by a same-line comment (`conditions: [r1, r2, r3]   # 5 to 10 ids`)
+// reads as a list instead of the whole `[...]  # ...` text, because the flow value is now parsed
+// character-by-character (quote-aware) instead of by checking whether the raw value ends in `]`.
+// Malformed flow syntax (unbalanced brackets) never throws: it falls back to the raw string, the
+// same as an unrecognized value always has.
 export function parseYamlSubset(lines) {
   return parseMap(lines, 0, 0, true)[0];
 }
@@ -124,8 +131,86 @@ function readBlock(lines, i, keyIndent, style) {
 }
 
 function inlineOrScalar(rest) {
-  if (rest.startsWith("[") && rest.endsWith("]")) return splitInline(rest.slice(1, -1)).map(scalar).filter((s) => s !== "");
+  if (rest.startsWith("[") || rest.startsWith("{")) {
+    const flow = tryParseFlow(rest);
+    if (flow !== undefined) return flow;
+  }
   return scalar(rest);
+}
+
+// A flow collection (`[...]` or `{...}`) parsed character-by-character so quotes can protect a
+// `,` `]` `}` or `#` from being read as structure, and so trailing whitespace plus a same-line
+// comment after the closing bracket does not fall the whole value back to a raw string. Returns
+// `undefined` (never throws) when `rest` is not a clean flow value: unbalanced brackets, an
+// unterminated quote, or trailing content that is neither blank nor a comment. The caller falls
+// back to `scalar(rest)` in every one of those cases, same as an unrecognized value always has.
+function tryParseFlow(rest) {
+  let parsed;
+  try {
+    parsed = readFlowCollection(rest, 0);
+  } catch {
+    return undefined;
+  }
+  const trailing = rest.slice(parsed.end);
+  if (trailing.trim() === "" || /^\s+#/.test(trailing)) return parsed.value;
+  return undefined;
+}
+
+function readFlowCollection(s, i) {
+  const open = s[i];
+  const close = open === "{" ? "}" : "]";
+  const isMap = open === "{";
+  i = skipFlowWs(s, i + 1);
+  if (s[i] === close) return { value: isMap ? {} : [], end: i + 1 };
+  const items = [];
+  for (;;) {
+    i = skipFlowWs(s, i);
+    if (i >= s.length) throw new Error("unterminated flow collection");
+    let key;
+    if (isMap) {
+      const k = readFlowToken(s, i, [":"]);
+      key = k.text.trim().replace(/^["']|["']$/g, "");
+      i = skipFlowWs(s, k.end + 1);
+    }
+    let value;
+    if (s[i] === "{" || s[i] === "[") {
+      const nested = readFlowCollection(s, i);
+      value = nested.value; i = nested.end;
+    } else {
+      const v = readFlowToken(s, i, [",", close]);
+      value = scalar(v.text);
+      i = v.end;
+    }
+    items.push(isMap ? [key, value] : value);
+    i = skipFlowWs(s, i);
+    if (s[i] === ",") { i = skipFlowWs(s, i + 1); if (s[i] === close) { i++; break; } continue; }
+    if (s[i] === close) { i++; break; }
+    throw new Error(`expected ',' or '${close}'`);
+  }
+  const value = isMap ? Object.fromEntries(items) : items.filter((v) => v !== "");
+  return { value, end: i };
+}
+
+function skipFlowWs(s, i) {
+  while (i < s.length && /\s/.test(s[i])) i++;
+  return i;
+}
+
+// Reads raw text from `i` up to (but not including) the first unquoted occurrence of a char in
+// `stopChars`, honoring both quote styles so a stop char inside quotes stays text. Throws (never
+// returns a partial token) when the string runs out before a stop char is found outside quotes,
+// which is what an unbalanced bracket or an unterminated quote looks like from here.
+function readFlowToken(s, i, stopChars) {
+  let text = "";
+  let q = null;
+  while (i < s.length) {
+    const ch = s[i];
+    if (q) { text += ch; if (ch === q) q = null; i++; continue; }
+    if (ch === '"' || ch === "'") { q = ch; text += ch; i++; continue; }
+    if (stopChars.includes(ch)) return { text, end: i };
+    text += ch; i++;
+  }
+  throw new Error("unterminated flow token");
 }
 
 function foldLines(lines) {
@@ -135,19 +220,6 @@ function foldLines(lines) {
     else s += (s && !s.endsWith("\n") ? " " : "") + l.trim();
   }
   return s;
-}
-
-function splitInline(s) {
-  const parts = [];
-  let cur = "", q = null;
-  for (const ch of s) {
-    if (q) { cur += ch; if (ch === q) q = null; }
-    else if (ch === '"' || ch === "'") { q = ch; cur += ch; }
-    else if (ch === ",") { parts.push(cur); cur = ""; }
-    else cur += ch;
-  }
-  parts.push(cur);
-  return parts.map((p) => p.trim());
 }
 
 function scalar(raw) {
