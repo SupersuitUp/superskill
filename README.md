@@ -54,7 +54,7 @@ Every rule and threshold is in [SPEC.md](SPEC.md).
 | `superskill init <skill> --from-session <transcript>` | Turn the session where you did the job by hand into the first eval and a golden candidate (Claude Code `.jsonl`, or any text file as the request). |
 | `superskill miss <skill> "<what happened>" [--expected "..."]` | Log a time the skill got it wrong. |
 | `superskill fix <skill> <miss-id> --eval <id> [--commit <sha>]` | Close a miss. Refuses without an eval that exists. |
-| `superskill approve <skill> <golden>` | A person signs off on a golden. Terminal only, asks for your name, so an agent cannot approve its own output. |
+| `superskill approve <skill> <golden> [--basis judgment\|outcome] [--rationale ...] [--evidence ...]` | A person signs off on a golden, saying why and what it rests on: `judgment` (it reads right) or `outcome` (it produced a checkable result, with evidence). Terminal only, asks for your name, so an agent cannot approve its own output. Approvals accumulate. |
 | `superskill collection <folder...> [--budget <chars>] [--overlap 0.5]` | Listing budget used, descriptions that get cut off, pairs of skills an agent could confuse (with near-miss triggers to add). |
 | `superskill miss import <skill> --freedom-ledger [--ledger <file>]` | Import runs that needed correcting from Freedom's run ledger. |
 | `superskill snippet` | Print a block for `AGENTS.md` / `CLAUDE.md` that teaches any agent these habits. |

@@ -97,7 +97,7 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 
 | Rule | Severity | Threshold |
 |---|---|---|
-| `golden-approved` | fail | at least one golden has an `APPROVAL.json` with non-empty `approved_by` and a valid `approved_at`; info when it was approved against an earlier `SKILL.md` |
+| `golden-approved` | fail | at least one golden has an approval with non-empty `approved_by` and a valid `approved_at`; info when it was approved against an earlier `SKILL.md`; info naming the weight (judgment and outcome approvals per golden), and saying so plainly when no golden has an outcome yet |
 | `misses-log-present` | fail | `MISSES.md` exists (it may have no entries) |
 | `no-stale-open-miss` | fail | no miss has been open more than 14 days |
 | `fixed-miss-has-eval` | fail | every fixed miss names an eval id present in `evals.json` or `goldens/` |
@@ -160,8 +160,23 @@ A bare array of cases is accepted on read, as is `assertions` for `expectations`
 - `APPROVAL.json`, written only by `superskill approve` at an interactive terminal:
 
 ```json
-{ "approved_by": "Ann Example", "approved_at": "2026-09-10T15:00:00.000Z", "skill_sha": "<sha256 of SKILL.md>", "note": "Exactly the shape I send my manager." }
+{ "approvals": [
+  { "approved_by": "Ann Example", "approved_at": "2026-09-10T15:00:00.000Z", "skill_sha": "<sha256 of SKILL.md>",
+    "rationale": "Exactly the shape I send my manager.", "basis": "judgment" },
+  { "approved_by": "Ann Example", "approved_at": "2026-09-20T15:00:00.000Z", "skill_sha": "<sha256 of SKILL.md>",
+    "rationale": "My manager adopted it as the team template.", "basis": "outcome",
+    "evidence": "Sent 2026-09-19; adopted as the template in the team wiki" }
+] }
 ```
+
+**Every approval carries a rationale and a basis, because being liked and being proven are
+different weights.** `judgment`: a person read the output and says it is right. `outcome`: the
+output produced a result in the world that someone can check (a client landed, a call booked, a
+template adopted), and `evidence` says what happened and where to check it. Approvals accumulate:
+two people approving, and later an outcome, all stay on the record. The newest approval is also
+mirrored at the top level (`approved_by`, `approved_at`, `skill_sha`, `note`), so a reader written
+before 0.3.0 still sees it. A pre-0.3.0 file with a single approval reads as one `judgment`
+approval whose `note` is its rationale.
 
 A golden is also an eval: `--run` judges the skill's output for `input.md` against the approved
 output.

@@ -76,6 +76,19 @@ test("golden-approved fails with no golden and with an unapproved one", () => {
   assert.deepEqual(sev("golden-approved", d), ["fail"]);
 });
 
+test("GUARD: golden-approved says when approvals rest on judgment only, and stops once an outcome is recorded", () => {
+  const d = copySkill("superskill");
+  const judgmentOnly = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((x) => x.message).join(" ");
+  assert.match(judgmentOnly, /judgment only, no outcome recorded yet/);
+  setJson(d, "goldens/g1/APPROVAL.json", { approvals: [
+    { approved_by: "Ann Example", approved_at: "2026-09-10T15:00:00Z", rationale: "Right shape", basis: "judgment" },
+    { approved_by: "Ann Example", approved_at: "2026-09-20T15:00:00Z", rationale: "My manager used it as is", basis: "outcome", evidence: "Sent 2026-09-19, adopted as the team template" },
+  ] });
+  const proven = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((x) => x.message).join(" ");
+  assert.doesNotMatch(proven, /judgment only/);
+  assert.match(proven, /g1: 1 judgment, 1 outcome/);
+});
+
 test("misses-log-present fails with no MISSES.md", () => {
   assert.deepEqual(sev("misses-log-present", skill("tested")), ["fail"]);
 });

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0 (2026-09-29)
+
+**A golden's approval says why, and what it rests on.** Before, an approval recorded who and when,
+with an optional note, so "a person approved it" read the same whether they liked it or it had
+landed a client. (Gary Sheng, on essays he and his co-founder had approved: *"golden approval also
+needs to carry rationale and weight. Right now the approval is based on Wilson and Gary being happy,
+not proven results of landing clients."*)
+
+- `superskill approve` now requires a rationale and asks for a basis: `judgment` (you read it and it
+  is right, the default) or `outcome` (it produced a result someone can check; `--evidence` is
+  required). New flags `--rationale` (`--note` still works), `--basis`, `--evidence`.
+- Approvals accumulate in `APPROVAL.json` under `approvals`, so two people approving, and a later
+  outcome, are all kept. The newest is mirrored at the top level for older readers; a pre-0.3.0 file
+  reads as one judgment approval.
+- `doctor` reports each golden's weight (`g1: 2 judgment, 1 outcome`) and says plainly when every
+  approval is judgment only. Informational: the level still needs one approved golden, since many
+  skills have no measurable outcome.
+- Tests: rationale and evidence refusals, legacy normalization, accumulation, and the doctor's
+  judgment-only finding appearing and clearing. Both new guards were mutated and went red.
+
 ## 0.2.2 (2026-09-29)
 
 - An inline flow map (`scope: { form: essay, audience: builders, purpose: persuade }`, `check: {

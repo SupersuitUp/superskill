@@ -2,7 +2,7 @@
 // got something wrong, and proven recently on a current model against the no-skill baseline.
 import { createHash } from "node:crypto";
 import { defineRules } from "./define.mjs";
-import { readGoldens, isApproved } from "../goldens.mjs";
+import { readGoldens, isApproved, weightOf } from "../goldens.mjs";
 import { readMisses } from "../misses.mjs";
 import { readEvals, readLatestRun } from "../evals.mjs";
 
@@ -33,6 +33,13 @@ export const superskillRules = defineRules([
       const sha = createHash("sha256").update(ctx.raw).digest("hex");
       const stale = approved.filter((g) => g.approval.skill_sha && g.approval.skill_sha !== sha).map((g) => g.id);
       if (stale.length) out.push(f("info", `golden${stale.length === 1 ? "" : "s"} ${stale.join(", ")} approved against an earlier SKILL.md`, "Re-run the golden and re-approve if the output still holds."));
+      // Liked is not proven. Say which weight the approvals carry, so "a person approved it" is
+      // never read as "it worked in the world".
+      const w = approved.map((g) => ({ id: g.id, ...weightOf(g) }));
+      const proven = w.filter((x) => x.outcome > 0);
+      const summary = w.map((x) => `${x.id}: ${x.judgment} judgment, ${x.outcome} outcome`).join("; ");
+      if (!proven.length) out.push(f("info", `approved on judgment only, no outcome recorded yet (${summary})`, "When a golden produces a real result, record it: `superskill approve <skill> <golden> --basis outcome --evidence \"<what happened, where to check>\"`."));
+      else out.push(f("info", `approval weight: ${summary}`, ""));
       return out;
     },
   },
