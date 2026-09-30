@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.3.0 (2026-09-29)
+## 0.3.1 (2026-09-29)
+
+The 0.3.0 changes below, released. The v0.3.0 tag's publish refused on a red test (SPEC.md still
+named 0.2.2), so nothing was published under 0.3.0.
+
+## 0.3.0 (2026-09-29, not published)
 
 **A golden's approval says why, and what it rests on.** Before, an approval recorded who and when,
 with an optional note, so "a person approved it" read the same whether they liked it or it had
