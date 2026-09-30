@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0 (2026-09-29)
+
+**Approve from your phone.** `superskill approve` worked only at an interactive terminal, so an
+operator who reviews on a phone had to find a laptop to say yes. (Gary Sheng: *"The best way for
+me to approve it is to click yes, approve, not you telling me to go to my terminal. I'm normally
+mobile first."*) Away from a terminal it now accepts `--approved-by "<the person>"` and
+`--via "<where they said yes>"`, after that person approved with a tap on a board or a review page.
+Both are required and both are recorded (`via` on the approval), so an approval an agent relayed is
+always distinguishable from one typed at a terminal, and an agent still cannot approve with no
+named person and no channel. A rationale is required either way.
+
+- Tests: refused with no name, refused with a name and no channel, refused with no rationale;
+  recorded with person, channel and basis. The channel requirement was mutated out and went red.
+
 ## 0.3.1 (2026-09-29)
 
 The 0.3.0 changes below, released. The v0.3.0 tag's publish refused on a red test (SPEC.md still

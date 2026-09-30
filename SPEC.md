@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.3.1** (2026-09-29). The reference checker is `@supersuit/superskill`; where this
+**Version 0.4.0** (2026-09-29). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is checked against examples a person approved,
@@ -157,7 +157,7 @@ A bare array of cases is accepted on read, as is `assertions` for `expectations`
 - `input.md`: the real request.
 - `output.md` (or any other file that is not `input.*` or `APPROVAL.json`): the output a person
   said was right.
-- `APPROVAL.json`, written only by `superskill approve` at an interactive terminal:
+- `APPROVAL.json`, written only by `superskill approve`: at an interactive terminal, or relayed by an agent with `--approved-by` and `--via` after the person approved with a tap (the `via` field records where):
 
 ```json
 { "approvals": [

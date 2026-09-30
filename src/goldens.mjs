@@ -54,6 +54,7 @@ export function approvalsOf(approval) {
       rationale: String(a.rationale ?? a.note ?? "").trim(),
       basis: a.basis === "outcome" ? "outcome" : "judgment",
       evidence: String(a.evidence ?? "").trim(),
+      via: String(a.via ?? "").trim(),
     }));
 }
 

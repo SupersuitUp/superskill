@@ -117,13 +117,31 @@ test("fix refuses without a regression eval, or with one that does not exist", (
 
 // ---- approve
 
-test("approve refuses when no person is at a terminal", () => {
+test("GUARD: away from a terminal, approve refuses without a named person AND the channel they approved through", () => {
   const d = copySkill("tested");
   mkdirSync(join(d, "goldens/g1"), { recursive: true });
   writeFileSync(join(d, "goldens/g1/input.md"), "in");
   writeFileSync(join(d, "goldens/g1/output.md"), "out");
   const r = spawnSync(process.execPath, [BIN, "approve", d, "g1"], { encoding: "utf8", input: "Mallory\n" });
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /approval needs a person at a terminal/);
+  assert.match(r.stderr, /approval needs a person/);
   assert.ok(!existsSync(join(d, "goldens/g1/APPROVAL.json")));
+  const onlyName = spawnSync(process.execPath, [BIN, "approve", d, "g1", "--approved-by", "Ann Example", "--rationale", "Right shape"], { encoding: "utf8" });
+  assert.equal(onlyName.status, 1, "a name with no channel is refused");
+  assert.ok(!existsSync(join(d, "goldens/g1/APPROVAL.json")));
+});
+
+test("mobile first: a tap approval relayed by an agent is recorded with the person and the channel", () => {
+  const d = copySkill("tested");
+  mkdirSync(join(d, "goldens/g1"), { recursive: true });
+  writeFileSync(join(d, "goldens/g1/input.md"), "in");
+  writeFileSync(join(d, "goldens/g1/output.md"), "out");
+  const noWhy = spawnSync(process.execPath, [BIN, "approve", d, "g1", "--approved-by", "Ann Example", "--via", "Approve tap on the review page"], { encoding: "utf8" });
+  assert.equal(noWhy.status, 1, "still needs a rationale");
+  const r = spawnSync(process.execPath, [BIN, "approve", d, "g1", "--approved-by", "Ann Example", "--via", "Approve tap on the review page", "--rationale", "Right shape"], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  const a = JSON.parse(readFileSync(join(d, "goldens/g1/APPROVAL.json"), "utf8"));
+  assert.equal(a.approvals[0].approved_by, "Ann Example");
+  assert.equal(a.approvals[0].via, "Approve tap on the review page");
+  assert.equal(a.approvals[0].basis, "judgment");
 });
