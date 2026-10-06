@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BIN, FIX, copySkill } from "./helpers.mjs";
 import { gradeMachine, parseVerdict, compileRegex } from "../src/run/grade.mjs";
@@ -73,4 +74,27 @@ test("--run --help explains the cost", () => {
   const r = run("doctor", "--run", "--help");
   assert.equal(r.status, 0);
   assert.match(r.stdout, /model calls/);
+});
+
+// The Goodhart leak (2026-10-05): the doctor's own sandbox runs were recorded by the caller's skill
+// ledger as perfect real runs. Every harness must hand its child the off switch.
+test("--run hands every sandboxed process the ledger off switch and a sandbox folder name", () => {
+  const d = copySkill("tested");
+  const log = join(mkdtempSync(join(tmpdir(), "ss-envlog-")), "env.jsonl");
+  const r = spawnSync(process.execPath, [BIN, "doctor", d, "--run", "--yes", "--repeat", "1"], { encoding: "utf8", env: { ...env, FAKE_ENV_LOG: log, FREEDOM_SKILL_LEDGER: "on" } });
+  assert.equal(r.status, 0, r.stderr);
+  const rows = readFileSync(log, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.ok(rows.length >= 6, "every case and every grader call is logged");
+  for (const row of rows) {
+    assert.equal(row.ledger, "off", "a sandbox run must never reach the caller's ledger");
+    assert.equal(row.sandbox, "1");
+  }
+  for (const row of rows.filter((x) => x.cwd)) assert.match(row.cwd, /superskill-run-/);
+});
+
+test("the real harnesses spawn with the sandbox environment", () => {
+  for (const f of ["claude.mjs", "codex.mjs"]) {
+    const src = readFileSync(join(import.meta.dirname, "..", "src", "run", f), "utf8");
+    assert.match(src, /spawnSync\("(claude|codex)", args, \{[^}]*env: sandboxEnv\(\)/, `${f} must pass sandboxEnv() to its child`);
+  }
 });

@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, symlinkSync, cpSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
+import { SANDBOX_PREFIX } from "./env.mjs";
 
 /**
  * A fresh working folder for one run. With `linkAt` (e.g. ".claude/skills"), the skill is
@@ -8,7 +9,7 @@ import { join, dirname } from "node:path";
  * files (paths relative to the skill) are copied in at the same relative paths.
  */
 export function prepareWorkspace({ skillDir, skillName, files = [], linkAt = null }) {
-  const cwd = mkdtempSync(join(tmpdir(), "superskill-run-"));
+  const cwd = mkdtempSync(join(tmpdir(), SANDBOX_PREFIX));
   if (linkAt) {
     const target = join(cwd, linkAt, skillName);
     mkdirSync(dirname(target), { recursive: true });

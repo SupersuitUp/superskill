@@ -3,12 +3,13 @@
 // {output, tokens?, model?}. Never calls a model.
 import { spawnSync } from "node:child_process";
 import { prepareWorkspace } from "./workspace.mjs";
+import { sandboxEnv } from "./env.mjs";
 
 export const name = "fake";
 
 function call(script, req) {
   const t0 = Date.now();
-  const r = spawnSync(process.execPath, [script], { input: JSON.stringify(req), encoding: "utf8" });
+  const r = spawnSync(process.execPath, [script], { input: JSON.stringify(req), env: sandboxEnv(), encoding: "utf8" });
   if (r.status !== 0) throw Object.assign(new Error(`fake harness failed: ${r.stderr}`), { code: "SUPERSKILL" });
   const doc = JSON.parse(r.stdout);
   return { output: doc.output ?? "", tokens: doc.tokens ?? null, model: doc.model ?? "fake", ms: Date.now() - t0, failed: false };

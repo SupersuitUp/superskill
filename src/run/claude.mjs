@@ -3,12 +3,13 @@
 // a copy installed at user level cannot leak into the baseline.
 import { spawnSync } from "node:child_process";
 import { prepareWorkspace } from "./workspace.mjs";
+import { sandboxEnv } from "./env.mjs";
 
 export const name = "claude";
 
 function call(args, cwd) {
   const t0 = Date.now();
-  const r = spawnSync("claude", args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 15 * 60 * 1000 });
+  const r = spawnSync("claude", args, { cwd, env: sandboxEnv(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 15 * 60 * 1000 });
   const ms = Date.now() - t0;
   if (r.error) throw Object.assign(new Error(`claude failed to start: ${r.error.message}`), { code: "SUPERSKILL" });
   let doc = null;
