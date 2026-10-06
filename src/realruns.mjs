@@ -66,7 +66,9 @@ function readFile(p, where) {
 /** Is a ledger record a one-shot run? Exported so a writer can count the same way the reader does. */
 export function isOneShot(rec) {
   const kinds = (Array.isArray(rec?.interventions) ? rec.interventions : []).filter((i) => i && MISS_KINDS.has(i.kind));
-  return !kinds.length && !["failed", "abandoned"].includes(rec?.outcome) && !rec?.corrected_after;
+  // Freedom derives `succeeded_with_rescues` from operator turns during the run even when nobody
+  // classified them, so an empty interventions list next to that outcome is still a rescue.
+  return !kinds.length && !["failed", "abandoned", "succeeded_with_rescues"].includes(rec?.outcome) && !rec?.corrected_after;
 }
 
 /** Summarize ledger records (Freedom's shape, or any with model/harness/started) per model+harness. */

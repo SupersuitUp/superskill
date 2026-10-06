@@ -120,6 +120,8 @@ test("pairsFromRecords counts one-shot the documented way: taste is fine, a corr
   ], "x");
   assert.deepEqual(pairs.map((p) => [p.model, p.harness, p.runs, p.one_shot]), [["m", "h", 6, 2]]);
   assert.equal(meetsBar(pairs, { minRuns: 5, minOneShot: 0.3 }).length, 1);
+  // A rescue the ledger derived from operator turns, with nothing classified, is still a rescue.
+  assert.equal(pairsFromRecords([{ ...base, outcome: "succeeded_with_rescues", interventions: [] }], "x")[0].one_shot, 0);
   assert.equal(meetsBar(pairs).length, 0);
 });
 

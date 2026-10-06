@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1 (2026-10-06)
+
+- **`real-runs` reading Freedom's ledger live no longer counts a rescued run as one-shot.** Freedom
+  derives `succeeded_with_rescues` from the operator's turns during a run even when nobody
+  classified them, so those records carry no intervention, and 0.6.0 read them as clean. Measured
+  on a real ledger the same day: a skill showed 54 of 54 one-shot that way. The exported
+  `superskill-real-runs/1` file was already right; only the live fallback was affected.
+
 ## 0.6.0 (2026-10-06)
 
 **A skill's embodiment is what it has absorbed, not one run of it.** 0.5.0 made a golden from a

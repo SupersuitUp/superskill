@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.6.0** (2026-10-06). The reference checker is `@supersuit/superskill`; where this
+**Version 0.6.1** (2026-10-06). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -319,8 +319,10 @@ Harness-neutral: any harness, ledger or script may write it, and the doctor only
 - A **run** is one real use of the skill by a person. Never a sandbox run (`doctor --run`), never
   a test.
 - It is **one-shot** when the person needed no correction, rescue or redirect, it did not fail or
-  get abandoned, and it was not corrected after it handed back. A taste note is the person's
-  preference, not the skill's defect, and does not break one-shot.
+  get abandoned, and it was not corrected after it handed back. A ledger outcome that already
+  says the person rescued the run (Freedom's `succeeded_with_rescues`) is not one-shot either,
+  whether or not the rescue was classified. A taste note is the person's preference, not the
+  skill's defect, and does not break one-shot.
 - `model` is the model id the harness ran (as the transcript or environment reports it);
   `harness` is `claude-code`, `codex`, or another harness's name. A writer that cannot tell
   writes `unknown`, never a guess. Counts only: the file carries no input, output or names, so it
