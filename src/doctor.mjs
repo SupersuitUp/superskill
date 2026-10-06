@@ -37,6 +37,7 @@ export function findSkills(path) {
 /** Score one loaded skill. */
 export function scoreSkill(dir, opts = {}) {
   const ctx = loadSkill(dir);
+  if (opts.privateGoldens) ctx.privateGoldens = opts.privateGoldens;
   const findings = runRules(ctx, opts.rules || allRules, opts);
   const level = computeLevel(findings);
   const up = nextLevel(level);

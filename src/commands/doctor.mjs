@@ -8,8 +8,9 @@ import { changedFiles, touchedSkills, levelDrops } from "../changed.mjs";
 export const help = `superskill doctor <path...> [options]
 
 Score one skill, a folder of skills, or a plugin (skills/*/SKILL.md).
-Levels: skill (spec-valid, hygienic) < tested (evals + triggers) < superskill
-(approved golden, misses fixed with evals, a fresh --run that beats no-skill).
+Levels: skill (spec-valid, hygienic) < tested (real evals + triggers) < superskill
+(an approved golden from a real run a person accepted, misses fixed with evals, a fresh
+--run that beats no-skill).
 
 Options:
   --level <skill|tested|superskill>  target level for the exit code (default skill)
@@ -20,6 +21,8 @@ Options:
   --baseline-json <file>             a previous --json; exit 1 if any skill's level dropped
   --run                              run the evals with and without the skill (costs
                                      model calls; see "superskill doctor --run --help")
+  --private-goldens <dir>            also read goldens from <dir>/<skill-name>/<id>/ (or set
+                                     SUPERSKILL_PRIVATE_GOLDENS): real runs kept out of the skill
   --now <iso date>                   evaluate dates as of this moment
   --help                             this text
 
@@ -34,7 +37,7 @@ export async function run(argv) {
   const level = a.flags.level || "skill";
   if (!LEVELS.includes(level)) throw new UsageError(`--level must be one of ${LEVELS.join(", ")}`);
   if (!a._.length) throw new UsageError("doctor needs a path");
-  const opts = { level, now: clock(a.flags) };
+  const opts = { level, now: clock(a.flags), privateGoldens: a.flags["private-goldens"] || process.env.SUPERSKILL_PRIVATE_GOLDENS || null };
   if (a.flags.changed) {
     const all = a._.flatMap((p) => findSkills(p));
     const files = a._.flatMap((p) => changedFiles(p, a.flags.base));

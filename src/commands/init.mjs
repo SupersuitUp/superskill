@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { parseArgs, UsageError } from "../args.mjs";
 import { skillDir } from "./common.mjs";
 import { MISSES_HEADER } from "../misses.mjs";
@@ -15,7 +15,9 @@ Never overwrites a file that exists.
 --from-session <file>  build the first eval and golden candidate from the session where
                        the job was done by hand. A Claude Code .jsonl gives the first
                        request and the final answer; any other file is the request.
-                       The golden waits for a person: run \`superskill approve\`.
+                       The golden waits for a person: fill in accepted.by and
+                       accepted.at in its PROVENANCE.json (who accepted the
+                       output when it ran), then \`superskill approve\`.
 `;
 
 const TRIGGER_EXAMPLE = [
@@ -65,6 +67,10 @@ export async function run(argv) {
     writeFileSync(evalsPath, JSON.stringify(doc, null, 2) + "\n");
     put(`goldens/${id}/input.md`, sessionCase.prompt + "\n");
     put(`goldens/${id}/output.md`, sessionCase.output ? sessionCase.output + "\n" : "");
+    // A real run, but nobody has said yet that its output was accepted. Until accepted.by and
+    // accepted.at are filled in (by the person, or by a tool that read their next message), this
+    // golden cannot count toward superskill however it is approved.
+    put(`goldens/${id}/PROVENANCE.json`, JSON.stringify({ source: "real-run", run: { session: basename(session), ledger_id: null, commit: null, at: null }, accepted: { by: null, at: null, signal: null, evidence: "" } }, null, 2) + "\n");
     process.stdout.write(`eval ${id} and golden candidate goldens/${id}/ written from ${session}\n`);
     process.stdout.write(`a person approves it with: superskill approve ${a._[0]} ${id}\n`);
   }

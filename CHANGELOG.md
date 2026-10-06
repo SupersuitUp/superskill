@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.5.0 (2026-10-06)
+
+**Superskill needs a golden from a real run.** Before, any golden a person approved counted, so a
+skill could reach the top level on examples its author invented. (Gary Sheng, on five invented
+goldens written to lift Freedom's flagship skills: *"I'm just concerned about hallucination that
+we're accepting just to get higher doctor ratings."*) **Breaking for anyone at superskill today:**
+an approved golden without the new `PROVENANCE.json` no longer counts, and the doctor says which
+golden and why.
+
+- `goldens/<id>/PROVENANCE.json`: `source` (`real-run`, `synthetic`, `synthetic-reconstruction`),
+  the `run` it came from (session, commit or ledger id), and who `accepted` the output when it ran,
+  and when. Only `real-run` with all of that counts for `golden-approved`. An anonymized twin of a
+  private golden counts with `derived_from` and the anonymizer's `ANONYMIZED.json` receipt.
+- **Private goldens.** `--private-goldens <dir>` (or `SUPERSKILL_PRIVATE_GOLDENS`) on `doctor`,
+  `approve` and `doctor --run` also reads `<dir>/<skill-name>/<id>/`, for real runs too personal
+  to ship with the skill. `approve` writes the approval beside the golden it found.
+- `init --from-session` writes a `real-run` provenance with `accepted` left empty, so the golden
+  counts only once someone records who accepted it.
+- **`evals-real` (tested):** a `superskill init` `REPLACE:` placeholder, or the same prompt or
+  trigger query twice, is not a case. Measured in Freedom on 2026-10-05: the init scaffold copied up
+  to 3 evals and 10 triggers scored `tested` while testing nothing.
+- **`doctor --run` is never recorded as a real use.** Every harness spawns its child with
+  `FREEDOM_SKILL_LEDGER=off` and `SUPERSKILL_SANDBOX=1`. Measured 2026-10-05: three sandbox runs
+  landed in Freedom's skill ledger as perfect one-shot runs of a skill nobody had used.
+- **`real-use` (info):** where the run ledger records what the person's next message made of each
+  run, the doctor prints how many of the last 30 days' judged runs they accepted, beside the level.
+- `miss import --freedom-ledger` skips sandbox records, matches `freedom:<skill>` records, and
+  points a correction's "Should have" at the person's next message (session and time, never text).
+  It reads `FREEDOM_SKILL_LEDGER_HOME` when Freedom's ledger was re-pointed.
+- Tests: 11 new; each guard broken on purpose and seen red (invented golden reaching superskill,
+  placeholders counting, duplicate prompts counting, a sandbox run becoming a miss, a twin with no
+  receipt counting, the ledger off switch missing from the run env, codex spawned without it).
+
 ## 0.4.0 (2026-09-29)
 
 **Approve from your phone.** `superskill approve` worked only at an interactive terminal, so an

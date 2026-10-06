@@ -37,7 +37,7 @@ file error. `--json` prints one JSON document and nothing else.
    hard-coded machine paths, nothing that reads like a prompt injection.
 2. **tested**: at least three task evals with checks a machine can verify, and a trigger set of
    at least ten requests, some that should load the skill and some near-misses that should not.
-3. **superskill**: a golden a person approved; no miss open longer than 14 days and every fixed
+3. **superskill**: a golden from a real run, accepted when it ran and approved by a person; no miss open longer than 14 days and every fixed
    miss guarded by an eval; a recent `--run` on file where the skill beats the same task done
    without it. "Recent" follows `metadata.cadence` (a weekly skill's proof lasts 30 days).
 
@@ -70,7 +70,7 @@ my-skill/
   SKILL.md
   evals/evals.json          task evals (Anthropic skill-creator format)
   evals/triggers.json       should / should-not load (skill-creator format)
-  goldens/<id>/             input.md, output.md, APPROVAL.json
+  goldens/<id>/             input.md, output.md, PROVENANCE.json, APPROVAL.json
   MISSES.md                 every miss, open or fixed with its eval
   evals/results/latest.json the last --run
 ```

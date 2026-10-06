@@ -1,0 +1,5 @@
+{
+  "source": "real-run",
+  "run": { "session": "0f1e2d3c-example", "ledger_id": null, "commit": null, "at": "2026-09-09T16:00:00Z" },
+  "accepted": { "by": "Ann Example", "at": "2026-09-09T16:05:00Z", "signal": "go", "evidence": "her next message after the run" }
+}

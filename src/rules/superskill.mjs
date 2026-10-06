@@ -2,13 +2,15 @@
 // got something wrong, and proven recently on a current model against the no-skill baseline.
 import { createHash } from "node:crypto";
 import { defineRules } from "./define.mjs";
-import { readGoldens, isApproved, weightOf } from "../goldens.mjs";
+import { readGoldens, isApproved, isRealApproved, weightOf, goldenOpts } from "../goldens.mjs";
+import { ledgerPaths, acceptedRate } from "../ledger.mjs";
 import { readMisses } from "../misses.mjs";
 import { readEvals, readLatestRun } from "../evals.mjs";
 
 const f = (severity, message, fix) => ({ severity, message, fix });
 const DAY = 86400000;
 export const OPEN_MISS_DAYS = 14;
+export const REAL_USE_DAYS = 30;
 /** How long a --run stays fresh, by metadata.cadence. */
 export const FRESH_DAYS = { daily: 30, weekly: 30, monthly: 60, quarterly: 120, yearly: 365 };
 const DEFAULT_FRESH = 30;
@@ -19,15 +21,27 @@ export const superskillRules = defineRules([
   {
     id: "golden-approved",
     level: "superskill",
-    check(ctx) {
+    check(ctx, opts = {}) {
       if (ctx.error) return [];
-      const goldens = readGoldens(ctx.dir);
-      const approved = goldens.filter(isApproved);
+      const goldens = readGoldens(ctx.dir, goldenOpts(ctx, opts));
+      const approvedAny = goldens.filter(isApproved);
+      // 0.5.0: only a golden from a real run a person accepted counts. An invented example, however
+      // careful, puts "a person said this was right" on something no person's work produced, and a
+      // skill could then reach the top level on its author's fiction.
+      const approved = goldens.filter(isRealApproved);
       const out = [];
+      const where = (g) => (g.private ? `private golden ${g.id}` : `goldens/${g.id}`);
       for (const g of goldens.filter((x) => x.approvalError))
-        out.push(f("fail", `goldens/${g.id}/APPROVAL.json is not valid JSON`, `Re-record it with \`superskill approve . ${g.id}\`.`));
+        out.push(f("fail", `${where(g)}/APPROVAL.json is not valid JSON`, `Re-record it with \`superskill approve . ${g.id}\`.`));
+      for (const g of goldens.filter((x) => x.provenanceError))
+        out.push(f("fail", `${where(g)}/PROVENANCE.json is not valid JSON`, "Rewrite it: source, run, accepted (see SPEC.md, goldens)."));
       if (!approved.length) {
-        out.push(f("fail", goldens.length ? `${goldens.length} golden${goldens.length === 1 ? "" : "s"}, none approved by a person` : "no goldens", goldens.length ? "A person runs `superskill approve <skill> <golden>` at a terminal after checking the output." : "Save a real input and the output you would sign off on under goldens/<id>/, then `superskill approve`."));
+        if (approvedAny.length) {
+          const why = approvedAny.map((g) => `${g.id} ${g.origin.why}`).join("; ");
+          out.push(f("fail", `${approvedAny.length} approved golden${approvedAny.length === 1 ? "" : "s"}, none from a real run a person accepted (${why})`, "A golden counts toward superskill only when goldens/<id>/PROVENANCE.json says source: real-run, names the run (session, commit, ledger id, or derived_from for an anonymized twin) and who accepted it and when. Invented examples belong in evals/evals.json, where they hold the skill at tested."));
+        } else {
+          out.push(f("fail", goldens.length ? `${goldens.length} golden${goldens.length === 1 ? "" : "s"}, none approved by a person` : "no goldens", goldens.length ? "A person runs `superskill approve <skill> <golden>` at a terminal (or relays a tap with --approved-by and --via) after checking the output." : "Save a real run's input and the output a person accepted under goldens/<id>/ with PROVENANCE.json, then `superskill approve`."));
+        }
         return out;
       }
       const sha = createHash("sha256").update(ctx.raw).digest("hex");
@@ -41,6 +55,19 @@ export const superskillRules = defineRules([
       if (!proven.length) out.push(f("info", `approved on judgment only, no outcome recorded yet (${summary})`, "When a golden produces a real result, record it: `superskill approve <skill> <golden> --basis outcome --evidence \"<what happened, where to check>\"`."));
       else out.push(f("info", `approval weight: ${summary}`, ""));
       return out;
+    },
+  },
+  {
+    // The real number beside the level: of the runs whose next message is recorded, how many did
+    // the person accept. Info only. A level is evidence about examples; this is evidence about use.
+    id: "real-use",
+    level: "superskill",
+    check(ctx, { now = new Date() } = {}) {
+      if (ctx.error) return [];
+      const name = (typeof ctx.data?.name === "string" && ctx.data.name) || ctx.folderName;
+      const r = acceptedRate(ledgerPaths(ctx.dir, name), { now, days: REAL_USE_DAYS });
+      if (!r.judged) return [];
+      return [f("info", `real use, last ${REAL_USE_DAYS} days: ${r.accepted} of ${r.judged} judged runs accepted (${pct(r.accepted / r.judged)})${r.synthetic ? `; ${r.synthetic} sandbox run${r.synthetic === 1 ? "" : "s"} not counted` : ""}`, "")];
     },
   },
   {
@@ -74,6 +101,7 @@ export const superskillRules = defineRules([
       const misses = (readMisses(ctx.dir) || []).filter((m) => m.status === "fixed");
       if (!misses.length) return [];
       const ids = new Set(readEvals(ctx.dir).cases.map((c) => String(c.id)));
+      // Shipped goldens only: a miss is closed by a check that travels with the skill.
       for (const g of readGoldens(ctx.dir)) ids.add(g.id);
       return misses
         .filter((m) => !m.eval || !ids.has(String(m.eval)))

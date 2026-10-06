@@ -5,8 +5,9 @@ import { createInterface } from "node:readline/promises";
 import { parseArgs, clock, UsageError } from "../args.mjs";
 import { skillDir, refuse } from "./common.mjs";
 import { readGoldens, approvalEntry, withApproval, BASES } from "../goldens.mjs";
+import { parseSkillFile } from "../frontmatter.mjs";
 
-export const help = `superskill approve <skill> <golden-id> [--rationale "<why it is right>"] [--basis judgment|outcome] [--evidence "<what happened, where to check>"]
+export const help = `superskill approve <skill> <golden-id> [--rationale "<why it is right>"] [--basis judgment|outcome] [--evidence "<what happened, where to check>"] [--private-goldens <dir>]
 
 Record that a person checked goldens/<id>/ and signs off on its output. At a terminal it asks
 for your name. From an agent (a phone tap on a board or review page), pass --approved-by
@@ -18,6 +19,11 @@ Every approval says WHY (--rationale, or asked) and WHAT IT RESTS ON (--basis, o
   outcome   it produced a result someone can check; --evidence is required
 Approvals accumulate: two people approving, or a judgment approval later backed by an outcome,
 all stay on the record. Writes goldens/<id>/APPROVAL.json with the SKILL.md hash.
+
+--private-goldens <dir> (or SUPERSKILL_PRIVATE_GOLDENS) also looks for the golden in
+<dir>/<skill-name>/<id>/, where an operator keeps goldens made from real runs that are too
+personal to travel with the skill. Approving records the approval; it never changes where a
+golden came from (PROVENANCE.json), and only a golden from a real run counts for superskill.
 `;
 
 export async function run(argv) {
@@ -26,8 +32,12 @@ export async function run(argv) {
   const dir = skillDir(a._[0], "approve");
   const id = a._[1];
   if (!id) throw new UsageError("approve needs a golden id");
-  const g = readGoldens(dir).find((x) => x.id === id);
-  if (!g) return refuse(`no goldens/${id}/`);
+  const name = parseSkillFile(readFileSync(join(dir, "SKILL.md"), "utf8")).data.name || "";
+  const privateGoldens = a.flags["private-goldens"] || process.env.SUPERSKILL_PRIVATE_GOLDENS || null;
+  const found = readGoldens(dir, { privateGoldens, name }).filter((x) => x.id === id);
+  // The private copy wins when both exist: it is the one the operator was shown.
+  const g = found.find((x) => x.private) || found[0];
+  if (!g) return refuse(`no goldens/${id}/${privateGoldens ? ` (nor ${join(privateGoldens, name, id)})` : ""}`);
   if (g.input === null || g.output === null || !g.output.trim()) return refuse(`goldens/${id}/ needs an input file and a non-empty output file before it can be approved`);
   if (!(process.stdin.isTTY && process.stdout.isTTY)) {
     // Mobile first: a person approves with a tap (a board, a review page) and an agent records it.
@@ -39,7 +49,7 @@ export async function run(argv) {
     const sha = createHash("sha256").update(readFileSync(join(dir, "SKILL.md"))).digest("hex");
     const made = approvalEntry({ name, rationale: a.flags.rationale || a.flags.note, basis: a.flags.basis || "judgment", evidence: a.flags.evidence, at: clock(a.flags).toISOString(), sha });
     if (made.error) return refuse(made.error);
-    const p = join(dir, "goldens", id, "APPROVAL.json");
+    const p = join(g.dir, "APPROVAL.json");
     const existed = existsSync(p);
     writeFileSync(p, JSON.stringify(withApproval(existed ? g.approval : null, { ...made.entry, via }), null, 2) + "\n");
     process.stdout.write(`${existed ? "added an approval to" : "approved"} goldens/${id}/ by ${name} (${made.entry.basis}, via ${via})\n`);
@@ -57,7 +67,7 @@ export async function run(argv) {
     const sha = createHash("sha256").update(readFileSync(join(dir, "SKILL.md"))).digest("hex");
     const made = approvalEntry({ name, rationale, basis, evidence, at: clock(a.flags).toISOString(), sha });
     if (made.error) return refuse(made.error);
-    const p = join(dir, "goldens", id, "APPROVAL.json");
+    const p = join(g.dir, "APPROVAL.json");
     const existed = existsSync(p);
     const prior = existed ? g.approval : null;
     writeFileSync(p, JSON.stringify(withApproval(prior, made.entry), null, 2) + "\n");

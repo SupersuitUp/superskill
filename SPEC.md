@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.4.0** (2026-09-29). The reference checker is `@supersuit/superskill`; where this
+**Version 0.5.0** (2026-10-06). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is checked against examples a person approved,
@@ -23,7 +23,7 @@ a file in the skill's own folder, so the evidence travels with the skill whereve
 | The clause | What proves it | Where it lives |
 |---|---|---|
 | A skill at all | A valid `SKILL.md` under the Agent Skills spec, plus the hygiene rules below | `SKILL.md` |
-| Checked against examples you approved | At least one golden: a real input, the output a person said was right, and a record of who approved it and when | `goldens/<id>/` |
+| Checked against examples you approved | At least one golden from a real run: the real input, the output the person accepted when it ran, where it came from, and a record of who approved it as a golden and when | `goldens/<id>/` (or a private folder, see below) |
 | Fixed every time it gets something wrong | A miss log where every miss is open (recently) or fixed with a regression eval that would catch it again | `MISSES.md` + `evals/evals.json` |
 | Runs on frontier intelligence | Its evals last passed on a current model, recently, and beat the same task run without the skill | `evals/results/latest.json` |
 
@@ -35,6 +35,7 @@ my-skill/
   evals/triggers.json               trigger evals     (level: tested)
   goldens/<id>/input.md             approved examples (level: superskill)
   goldens/<id>/output.md
+  goldens/<id>/PROVENANCE.json
   goldens/<id>/APPROVAL.json
   MISSES.md                         miss log          (level: superskill)
   evals/results/latest.json         last --run        (level: superskill)
@@ -91,13 +92,15 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 |---|---|---|
 | `evals-present` | fail | `evals/evals.json` parses and there are at least 3 cases (each golden with an input and an output counts as one) |
 | `evals-verifiable` | fail | every case in `evals.json` has a prompt and at least one expectation |
+| `evals-real` | fail | no eval case and no trigger still holds a `superskill init` `REPLACE:` placeholder, no two cases share a prompt, and no two triggers share a query |
 | `triggers-present` | fail | `evals/triggers.json` has at least 10 queries, at least 3 that should load the skill and at least 3 near-misses that should not |
 
 ### Level 3: superskill
 
 | Rule | Severity | Threshold |
 |---|---|---|
-| `golden-approved` | fail | at least one golden has an approval with non-empty `approved_by` and a valid `approved_at`; info when it was approved against an earlier `SKILL.md`; info naming the weight (judgment and outcome approvals per golden), and saying so plainly when no golden has an outcome yet |
+| `golden-approved` | fail | at least one golden **from a real run** (its `PROVENANCE.json` says `source: real-run`, names the run, and names who accepted it and when; an anonymized twin also carries `ANONYMIZED.json`) has an approval with non-empty `approved_by` and a valid `approved_at`. An approved golden without that provenance is named and does not count. Info when it was approved against an earlier `SKILL.md`; info naming the weight (judgment and outcome approvals per golden), and saying so plainly when no golden has an outcome yet |
+| `real-use` | info | when the run ledger records what the person's next message made of each run (Freedom's `next_turn`), the share of those runs in the last 30 days they accepted; sandbox runs are never counted |
 | `misses-log-present` | fail | `MISSES.md` exists (it may have no entries) |
 | `no-stale-open-miss` | fail | no miss has been open more than 14 days |
 | `fixed-miss-has-eval` | fail | every fixed miss names an eval id present in `evals.json` or `goldens/` |
@@ -181,6 +184,38 @@ approval whose `note` is its rationale.
 A golden is also an eval: `--run` judges the skill's output for `input.md` against the approved
 output.
 
+**`PROVENANCE.json` says where the example came from (0.5.0).** Only a golden from a real run
+counts toward superskill. An invented input with an invented output puts "a person said this was
+right" on something no person's work produced, and a skill could then reach the top level on its
+author's fiction. Invented cases still belong in `evals/evals.json`, where they hold a skill at
+`tested`.
+
+```json
+{
+  "source": "real-run",
+  "run": { "session": "88696e1b-...", "ledger_id": "inv_2026-09-28T02-28-29Z_ab12", "commit": null, "at": "2026-09-28T02:28:29Z" },
+  "accepted": { "by": "Ann Example", "at": "2026-09-28T03:22:51Z", "signal": "close", "evidence": "her next message after the run" }
+}
+```
+
+- `source`: `real-run`, `synthetic`, or `synthetic-reconstruction`. Only `real-run` counts.
+- `run`: at least one of `session`, `commit`, `ledger_id` names the run it came from.
+- `accepted`: who accepted the output **when it ran** (`by`), and when (`at`). This is not the
+  approval: accepting is what the person did at the time (moved on, closed, said go); approving
+  is saying afterwards that this example is the standard. Both are required.
+- An **anonymized twin** of a private golden says `anonymized: true` and `derived_from` (a hash of
+  the original, never its path or content) in place of the run, and carries `ANONYMIZED.json`, the
+  anonymizer's receipt (`checker`, `checked_at`, `counts` by kind, `fingerprint`, never the
+  mapping). Without the receipt the twin does not count.
+- `superskill init --from-session` writes `source: real-run` with `accepted` empty, so the golden
+  cannot count until someone records who accepted it.
+
+**Private goldens.** A real run's input and output are usually about real people and should not
+travel with a skill that is shared. `--private-goldens <dir>` (or `SUPERSKILL_PRIVATE_GOLDENS`)
+makes `doctor`, `approve` and `doctor --run` also read `<dir>/<skill-name>/<id>/`, laid out exactly
+like `goldens/<id>/`. A private golden counts for the operator who holds it. A miss is closed only
+by an eval or golden that ships with the skill.
+
 ### `MISSES.md`
 
 ```markdown
@@ -246,7 +281,12 @@ exist they are read as plain files:
   `{id, skill, started, outcome, interventions: [{kind, note|what}], errors}`. A record with an
   intervention of kind `redirect`, `correction` or `rescue`, or with `outcome: "failed"`, becomes
   an open miss dated from `started`; `taste` interventions are skipped; the ledger id is kept on
-  a `Source:` line so a record is never imported twice.
+  a `Source:` line so a record is never imported twice. A record with `synthetic: true` (a
+  sandbox run) is skipped. A record corrected after it handed back (`corrected_after`, with
+  `next_turn_ref`) gets a "Should have" that points at the person's correction: the session and
+  the time, never their words.
+- **`doctor --run` is never recorded as a use.** Every harness spawns its child with
+  `FREEDOM_SKILL_LEDGER=off` and `SUPERSKILL_SANDBOX=1`, in a folder named `superskill-run-*`.
 
 ## Versioning
 

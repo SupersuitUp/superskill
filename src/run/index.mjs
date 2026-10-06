@@ -39,11 +39,12 @@ export function pickHarness(name) {
 }
 
 /** Every case the run will execute: evals.json cases plus goldens judged against their approved output. */
-export function collectCases(skillDir) {
+export function collectCases(skillDir, { privateGoldens = process.env.SUPERSKILL_PRIVATE_GOLDENS || null } = {}) {
   const e = readEvals(skillDir);
+  const name = parseSkillFile(readFileSync(join(skillDir, "SKILL.md"), "utf8")).data.name || "";
   if (e.error) throw new UsageError(e.error);
   const cases = e.cases.filter((c) => c.prompt.trim()).map((c) => ({ id: String(c.id), prompt: c.prompt, files: c.files, assertions: c.assertions.length ? c.assertions : [c.expected_output].filter(Boolean) }));
-  for (const g of readGoldens(skillDir)) {
+  for (const g of readGoldens(skillDir, { privateGoldens, name })) {
     if (!g.input || !g.output || !g.output.trim()) continue;
     cases.push({ id: `golden:${g.id}`, prompt: g.input, files: [], assertions: [`The output matches this approved output in substance (same facts, same shape; wording may differ):\n${g.output}`] });
   }

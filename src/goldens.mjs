@@ -1,36 +1,88 @@
 // goldens/<id>/: input.md, the approved output (output.md, or any other non-input file),
-// and APPROVAL.json written by a person: { approvals: [{approved_by, approved_at, skill_sha,
-// rationale, basis, evidence}] }, or the single-approval shape from before 0.3.0.
+// APPROVAL.json written by a person: { approvals: [{approved_by, approved_at, skill_sha,
+// rationale, basis, evidence}] } (or the single-approval shape from before 0.3.0),
+// PROVENANCE.json saying where the example came from (0.5.0), and, for an anonymized twin of a
+// private golden, ANONYMIZED.json, the anonymizer's receipt.
+//
+// A golden may also live OUTSIDE the skill, in a private folder the operator keeps
+// (<private>/<skill-name>/<id>/), because a real run's input and output are usually about real
+// people and should not travel with a skill that is shared. The doctor reads both.
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-export function readGoldens(dir) {
-  const root = join(dir, "goldens");
-  if (!existsSync(root)) return [];
+/** Files in a golden folder that describe it rather than being its input or output. */
+export const META_FILES = new Set(["APPROVAL.json", "PROVENANCE.json", "ANONYMIZED.json"]);
+
+/** Where goldens are read from: the skill's own goldens/, then the private folder for its name. */
+export function goldenRoots(dir, { privateGoldens = null, name = null } = {}) {
+  const roots = [{ root: join(dir, "goldens"), private: false }];
+  if (privateGoldens && name) roots.push({ root: join(privateGoldens, name), private: true });
+  return roots;
+}
+
+const readJsonFile = (p) => {
+  if (!existsSync(p)) return { value: null, error: null };
+  try { return { value: JSON.parse(readFileSync(p, "utf8")), error: null }; }
+  catch (e) { return { value: null, error: e.message }; }
+};
+
+export function readGoldens(dir, opts = {}) {
   const out = [];
-  for (const id of readdirSync(root).sort()) {
-    const gdir = join(root, id);
-    try { if (!statSync(gdir).isDirectory()) continue; } catch { continue; }
-    const files = readdirSync(gdir);
-    const inputName = files.find((f) => /^input\./i.test(f));
-    const outputName = files.find((f) => /^output\./i.test(f)) || files.find((f) => f !== inputName && f !== "APPROVAL.json" && !f.startsWith("."));
-    let approval = null, approvalError = null;
-    if (files.includes("APPROVAL.json")) {
-      try { approval = JSON.parse(readFileSync(join(gdir, "APPROVAL.json"), "utf8")); }
-      catch (e) { approvalError = e.message; }
+  for (const { root, private: priv } of goldenRoots(dir, opts)) {
+    if (!existsSync(root)) continue;
+    for (const id of readdirSync(root).sort()) {
+      const gdir = join(root, id);
+      try { if (!statSync(gdir).isDirectory()) continue; } catch { continue; }
+      const files = readdirSync(gdir).filter((f) => { try { return statSync(join(gdir, f)).isFile(); } catch { return false; } });
+      const inputName = files.find((f) => /^input\./i.test(f));
+      const outputName = files.find((f) => /^output\./i.test(f)) || files.find((f) => f !== inputName && !META_FILES.has(f) && !f.startsWith("."));
+      const appr = readJsonFile(join(gdir, "APPROVAL.json"));
+      const prov = readJsonFile(join(gdir, "PROVENANCE.json"));
+      const anon = readJsonFile(join(gdir, "ANONYMIZED.json"));
+      const provenance = prov.value;
+      out.push({
+        id,
+        dir: gdir,
+        private: priv,
+        input: inputName ? readFileSync(join(gdir, inputName), "utf8") : null,
+        outputFile: outputName || null,
+        output: outputName ? readFileSync(join(gdir, outputName), "utf8") : null,
+        approval: appr.value,
+        approvals: approvalsOf(appr.value),
+        approvalError: appr.error,
+        provenance,
+        provenanceError: prov.error,
+        anonymized: anon.value,
+        origin: originOf(provenance, anon.value),
+      });
     }
-    out.push({
-      id,
-      dir: gdir,
-      input: inputName ? readFileSync(join(gdir, inputName), "utf8") : null,
-      outputFile: outputName || null,
-      output: outputName ? readFileSync(join(gdir, outputName), "utf8") : null,
-      approval,
-      approvals: approvalsOf(approval),
-      approvalError,
-    });
   }
   return out;
+}
+
+/** Where a golden's example came from. `real-run` is the only source that can reach superskill. */
+export const SOURCES = ["real-run", "synthetic", "synthetic-reconstruction"];
+
+/**
+ * Is this golden a real run a person accepted, and if not, why not?
+ *
+ * A real run names the run it came from (a session, a commit, a ledger id, or, for an
+ * anonymized twin, `derived_from`: a hash of the private original, never its content) and the
+ * person who accepted the output when it happened, and when. An anonymized twin must also carry
+ * the anonymizer's receipt, because "the original was accepted" and "this twin still says the
+ * same thing" are different claims.
+ */
+export function originOf(prov, receipt = null) {
+  if (!prov || typeof prov !== "object") return { real: false, why: "no PROVENANCE.json" };
+  if (prov.source !== "real-run") return { real: false, why: `source is ${JSON.stringify(prov.source ?? null)}, not "real-run"` };
+  const run = prov.run && typeof prov.run === "object" ? prov.run : {};
+  const ref = ["session", "commit", "ledger_id"].map((k) => run[k]).concat(prov.derived_from).find((x) => typeof x === "string" && x.trim());
+  if (!ref) return { real: false, why: "names no run (run.session, run.commit, run.ledger_id or derived_from)" };
+  const acc = prov.accepted && typeof prov.accepted === "object" ? prov.accepted : {};
+  if (!(typeof acc.by === "string" && acc.by.trim())) return { real: false, why: "names no person who accepted the run (accepted.by)" };
+  if (!validDate(acc.at)) return { real: false, why: "has no valid accepted.at" };
+  if (prov.anonymized === true && !(receipt && typeof receipt === "object" && receipt.fingerprint)) return { real: false, why: "is an anonymized twin with no ANONYMIZED.json receipt" };
+  return { real: true, why: "" };
 }
 
 /** What an approval rests on. `judgment`: the people who approved it read it and said it is right.
@@ -82,3 +134,12 @@ export function withApproval(existing, entry) {
 }
 
 export const isApproved = (g) => approvalsOf(g.approval).length > 0;
+
+/** Approved AND from a real run a person accepted: the only golden that counts for superskill. */
+export const isRealApproved = (g) => isApproved(g) && (g.origin || originOf(g.provenance, g.anonymized)).real;
+
+/** The options readGoldens needs for a loaded skill: its name and the private folder, if any. */
+export const goldenOpts = (ctx, opts = {}) => ({
+  name: (typeof ctx.data?.name === "string" && ctx.data.name) || ctx.folderName,
+  privateGoldens: opts.privateGoldens ?? ctx.privateGoldens ?? process.env.SUPERSKILL_PRIVATE_GOLDENS ?? null,
+});
