@@ -35,3 +35,32 @@ export function ask(prompt, { model } = {}) {
   if (model) args.push("--model", model);
   return call(args, cwd).output;
 }
+
+/**
+ * Did Claude Code load the skill for this query? Run headless with the skill installed and read
+ * the stream: a Skill tool call naming it, or a Read of its SKILL.md, is a load.
+ */
+export function loadedSkill(stream, skillName) {
+  for (const line of String(stream).split("\n")) {
+    if (!line.trim().startsWith("{")) continue;
+    let ev; try { ev = JSON.parse(line); } catch { continue; }
+    const content = ev?.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const c of content) {
+      if (c?.type !== "tool_use") continue;
+      const input = c.input || {};
+      if (c.name === "Skill" && [input.skill, input.command, input.name].some((v) => typeof v === "string" && v.split(":").pop() === skillName)) return true;
+      if (typeof input.file_path === "string" && input.file_path.endsWith(`/${skillName}/SKILL.md`)) return true;
+    }
+  }
+  return false;
+}
+
+export function triggerCase({ skillDir, skillName, query, model }) {
+  const cwd = prepareWorkspace({ skillDir, skillName, linkAt: ".claude/skills" });
+  const args = ["-p", query, "--output-format", "stream-json", "--verbose", "--add-dir", cwd];
+  if (model) args.push("--model", model);
+  const r = spawnSync("claude", args, { cwd, env: sandboxEnv(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 15 * 60 * 1000 });
+  if (r.error) throw Object.assign(new Error(`claude failed to start: ${r.error.message}`), { code: "SUPERSKILL" });
+  return { triggered: loadedSkill(r.stdout, skillName), failed: r.status !== 0 && !r.stdout, cwd };
+}

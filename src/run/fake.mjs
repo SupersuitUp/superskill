@@ -1,6 +1,6 @@
 // A stand-in harness for tests: SUPERSKILL_FAKE_HARNESS names a node script that reads one
-// JSON request on stdin ({mode: "case"|"ask", prompt, withSkill, cwd}) and prints
-// {output, tokens?, model?}. Never calls a model.
+// JSON request on stdin ({mode: "case"|"ask"|"trigger", prompt|query, withSkill, cwd}) and
+// prints {output, tokens?, model?} (or {triggered} for a trigger). Never calls a model.
 import { spawnSync } from "node:child_process";
 import { prepareWorkspace } from "./workspace.mjs";
 import { sandboxEnv } from "./env.mjs";
@@ -21,6 +21,11 @@ export function create(script) {
     runCase({ skillDir, skillName, prompt, files, withSkill }) {
       const cwd = prepareWorkspace({ skillDir, skillName, files, linkAt: withSkill ? ".claude/skills" : null });
       return { ...call(script, { mode: "case", prompt, withSkill, cwd }), cwd };
+    },
+    triggerCase({ skillDir, skillName, query }) {
+      const cwd = prepareWorkspace({ skillDir, skillName, linkAt: ".claude/skills" });
+      const doc = JSON.parse(spawnSync(process.execPath, [script], { input: JSON.stringify({ mode: "trigger", query, cwd }), env: sandboxEnv(), encoding: "utf8" }).stdout || "{}");
+      return { triggered: Boolean(doc.triggered), failed: false, cwd };
     },
     ask(prompt) {
       return call(script, { mode: "ask", prompt }).output;

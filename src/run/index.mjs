@@ -8,7 +8,8 @@ import { createInterface } from "node:readline/promises";
 import { clock, UsageError } from "../args.mjs";
 import { findSkills } from "../doctor.mjs";
 import { parseSkillFile } from "../frontmatter.mjs";
-import { readEvals } from "../evals.mjs";
+import { readEvals, readTriggers } from "../evals.mjs";
+import { createHash } from "node:crypto";
 import { readGoldens } from "../goldens.mjs";
 import { grade, isMachineCheck } from "./grade.mjs";
 import * as claude from "./claude.mjs";
@@ -18,7 +19,9 @@ import { create as createFake } from "./fake.mjs";
 export const help = `superskill doctor <skill> --run [--harness claude|codex] [--repeat 3] [--model <id>] [--yes]
 
 Run the skill's evals for real: every case in evals/evals.json and every golden, --repeat
-times with the skill and --repeat times without it, through a headless harness. Machine
+times with the skill and --repeat times without it, and every query in evals/triggers.json
+--repeat times with the skill installed (did it load when it should, and not otherwise),
+through a headless harness. Machine
 checks (contains:, regex:, file_exists:) are free; each plain-language expectation costs
 one grader call per run. Prints the estimated number of model calls first, and asks
 before starting (or needs --yes when there is no terminal). Writes
@@ -45,15 +48,51 @@ export function collectCases(skillDir, { privateGoldens = process.env.SUPERSKILL
   if (e.error) throw new UsageError(e.error);
   const cases = e.cases.filter((c) => c.prompt.trim()).map((c) => ({ id: String(c.id), prompt: c.prompt, files: c.files, assertions: c.assertions.length ? c.assertions : [c.expected_output].filter(Boolean) }));
   for (const g of readGoldens(skillDir, { privateGoldens, name })) {
-    if (!g.input || !g.output || !g.output.trim()) continue;
-    cases.push({ id: `golden:${g.id}`, prompt: g.input, files: [], assertions: [`The output matches this approved output in substance (same facts, same shape; wording may differ):\n${g.output}`] });
+    if (!g.input || !((g.output && g.output.trim()) || g.expectations?.length)) continue;
+    // 0.6.0: grade the outcome, not the path. A golden with a checklist is graded on it; one
+    // without falls back to likeness with its reference output.
+    const assertions = g.expectations?.length ? g.expectations : [`The output matches this approved output in substance (same facts, same shape; wording may differ):\n${g.output}`];
+    cases.push({ id: `golden:${g.id}`, prompt: g.input, files: [], assertions });
   }
   return cases;
 }
 
-export function estimateCalls(cases, repeat) {
+export function estimateCalls(cases, repeat, triggers = 0) {
   const graded = cases.reduce((n, c) => n + c.assertions.filter((a) => !isMachineCheck(a)).length, 0);
-  return { runs: cases.length * repeat * 2, grader: graded * repeat * 2, total: cases.length * repeat * 2 + graded * repeat * 2 };
+  const runs = cases.length * repeat * 2 + triggers * repeat;
+  return { runs, grader: graded * repeat * 2, triggers: triggers * repeat, total: runs + graded * repeat * 2 };
+}
+
+/** The trigger queries the run will check, from evals/triggers.json. */
+export function collectTriggers(skillDir) {
+  const t = readTriggers(skillDir);
+  if (t.error) throw new UsageError(t.error);
+  return t.triggers;
+}
+
+/**
+ * Run every trigger query `repeat` times with the skill installed and record whether the harness
+ * loaded it. A query passes a run when loading matched should_trigger.
+ */
+export function runTriggers(skillDir, { harness, repeat, model, log = () => {} }) {
+  const skillName = parseSkillFile(readFileSync(join(skillDir, "SKILL.md"), "utf8")).data.name || "";
+  const queries = collectTriggers(skillDir);
+  if (!queries.length) return null;
+  if (typeof harness.triggerCase !== "function") throw new UsageError(`harness ${harness.name} cannot run trigger evals`);
+  let runs = 0, passes = 0;
+  const per_query = [];
+  for (const q of queries) {
+    const row = { query: q.query, should_trigger: q.should_trigger, runs: 0, passes: 0 };
+    for (let i = 0; i < repeat; i++) {
+      log(`trigger "${q.query.slice(0, 40)}", run ${i + 1}/${repeat}`);
+      const r = harness.triggerCase({ skillDir, skillName, query: q.query, model });
+      if (r.cwd) rmSync(r.cwd, { recursive: true, force: true });
+      const ok = !r.failed && Boolean(r.triggered) === q.should_trigger;
+      row.runs++; row.passes += ok ? 1 : 0; runs++; passes += ok ? 1 : 0;
+    }
+    per_query.push(row);
+  }
+  return { cases: queries.length, runs, passes, pass_rate: runs ? round(passes / runs) : 0, per_query };
 }
 
 export function runEvals(skillDir, { harness, repeat = 3, now = new Date(), model, log = () => {} }) {
@@ -84,7 +123,10 @@ export function runEvals(skillDir, { harness, repeat = 3, now = new Date(), mode
     per_case.push(row);
   }
   const summary = (t) => ({ pass_rate: t.runs ? round(t.passes / t.runs) : 0, mean_ms: t.runs ? Math.round(t.ms / t.runs) : 0, mean_tokens: t.tokenRuns ? Math.round(t.tokens / t.tokenRuns) : null });
-  const result = { run_at: now.toISOString(), harness: harness.name, model: seenModel, cases: cases.length, repeat, with_skill: summary(totals.with_skill), without_skill: summary(totals.without_skill), per_case };
+  const triggers = runTriggers(skillDir, { harness, repeat, model, log });
+  // 0.6.0: the run says which SKILL.md it proved, so a later edit cannot ride on an old pass.
+  const skill_sha = createHash("sha256").update(readFileSync(join(skillDir, "SKILL.md"), "utf8")).digest("hex");
+  const result = { run_at: now.toISOString(), harness: harness.name, model: seenModel, skill_sha, cases: cases.length, repeat, with_skill: summary(totals.with_skill), without_skill: summary(totals.without_skill), per_case, ...(triggers ? { triggers } : {}) };
   mkdirSync(join(skillDir, "evals", "results"), { recursive: true });
   writeFileSync(join(skillDir, "evals", "results", "latest.json"), JSON.stringify(result, null, 2) + "\n");
   return result;
@@ -100,11 +142,11 @@ export async function runCommand(a) {
   const harness = pickHarness(a.flags.harness);
   const dirs = a._.flatMap((p) => findSkills(p));
   if (!dirs.length) throw new UsageError(`no skills found under ${a._.join(", ")}`);
-  const plan = dirs.map((d) => ({ dir: d, cases: collectCases(d) }));
-  const calls = plan.reduce((n, p) => n + estimateCalls(p.cases, repeat).total, 0);
+  const plan = dirs.map((d) => ({ dir: d, cases: collectCases(d), triggers: collectTriggers(d).length }));
+  const calls = plan.reduce((n, p) => n + estimateCalls(p.cases, repeat, p.triggers).total, 0);
   for (const p of plan) {
-    const e = estimateCalls(p.cases, repeat);
-    process.stderr.write(`${p.dir}: ${p.cases.length} cases x ${repeat} x 2 = ${e.runs} runs + ${e.grader} grader calls\n`);
+    const e = estimateCalls(p.cases, repeat, p.triggers);
+    process.stderr.write(`${p.dir}: ${p.cases.length} cases x ${repeat} x 2 + ${p.triggers} triggers x ${repeat} = ${e.runs} runs + ${e.grader} grader calls\n`);
   }
   process.stderr.write(`estimated model calls: ${calls} through ${harness.name}\n`);
   if (!a.flags.yes) {
@@ -122,7 +164,7 @@ export async function runCommand(a) {
   for (const p of plan) {
     const r = runEvals(p.dir, { harness, repeat, now, model: a.flags.model, log: (m) => process.stderr.write(`  ${m}\n`) });
     results.push({ path: p.dir, ...r });
-    if (!a.flags.json) process.stdout.write(`${p.dir}\n  with skill ${pct(r.with_skill.pass_rate)}  without ${pct(r.without_skill.pass_rate)}  (${r.cases} cases x ${repeat})\n  wrote evals/results/latest.json\n`);
+    if (!a.flags.json) process.stdout.write(`${p.dir}\n  with skill ${pct(r.with_skill.pass_rate)}  without ${pct(r.without_skill.pass_rate)}  (${r.cases} cases x ${repeat})${r.triggers ? `\n  triggers ${pct(r.triggers.pass_rate)} right (${r.triggers.cases} queries x ${repeat})` : ""}\n  wrote evals/results/latest.json\n`);
   }
   if (a.flags.json) process.stdout.write(JSON.stringify({ results }, null, 2) + "\n");
   return results.every((r) => r.with_skill.pass_rate > r.without_skill.pass_rate) ? 0 : 1;

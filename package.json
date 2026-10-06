@@ -1,6 +1,6 @@
 {
   "name": "@supersuit/superskill",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Score any agent skill folder as skill, tested, or superskill. An open standard and a zero-dependency CLI.",
   "type": "module",
   "bin": {

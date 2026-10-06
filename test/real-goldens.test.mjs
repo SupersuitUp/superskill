@@ -1,5 +1,6 @@
-// 0.5.0: superskill needs a golden from a real run a person accepted; placeholder evals are not
-// evals; a sandbox run is never a use. Each GUARD below was broken on purpose and seen red.
+// 0.5.0 made a golden from a real run the top-level requirement; 0.6.0 made goldens optional
+// evidence. What stays: provenance decides whether a golden is a real run, placeholder evals are
+// not evals, and a sandbox run is never a use. Each GUARD below was broken on purpose and seen red.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync, rmSync, readFileSync, mkdirSync, cpSync, existsSync } from "node:fs";
@@ -18,18 +19,20 @@ const level = (dir, opts = {}) => scoreSkill(dir, { now: NOW, ...opts }).level;
 const setJson = (dir, rel, v) => writeFileSync(join(dir, rel), JSON.stringify(v, null, 2));
 const REAL = { source: "real-run", run: { session: "abc" }, accepted: { by: "Ann Example", at: "2026-09-09T16:05:00Z" } };
 
-test("GUARD: an approved golden with no provenance cannot reach superskill", () => {
+test("an approved golden with no provenance is named as not a real run, and changes no level", () => {
   const d = copySkill("superskill");
   rmSync(join(d, "goldens/g1/PROVENANCE.json"));
-  assert.equal(level(d), "tested");
+  assert.equal(level(d), "superskill");
   const msg = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((f) => f.message).join(" ");
-  assert.match(msg, /none from a real run a person accepted \(g1 no PROVENANCE\.json\)/);
+  assert.match(msg, /not from a real run a person accepted: g1 no PROVENANCE\.json/);
 });
 
-test("GUARD: a synthetic golden, however approved, holds the skill at tested", () => {
+test("a synthetic golden is named as such and is not reported as real evidence", () => {
   const d = copySkill("superskill");
   setJson(d, "goldens/g1/PROVENANCE.json", { ...REAL, source: "synthetic" });
-  assert.equal(level(d), "tested");
+  const msg = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((f) => f.message).join(" ");
+  assert.match(msg, /g1 source is "synthetic"/);
+  assert.doesNotMatch(msg, /real goldens/);
 });
 
 test("a real-run golden needs a run reference and a person who accepted it, with a date", () => {
@@ -43,16 +46,15 @@ test("a real-run golden needs a run reference and a person who accepted it, with
 test("GUARD: an anonymized twin counts only with the anonymizer's receipt", () => {
   const d = copySkill("superskill");
   setJson(d, "goldens/g1/PROVENANCE.json", { source: "real-run", anonymized: true, derived_from: "sha256:abc", accepted: { by: "the operator", at: "2026-09-09T16:05:00Z" } });
-  assert.equal(level(d), "tested");
+  assert.match(scoreSkill(d, { now: NOW }).findings.map((f) => f.message).join(" "), /no ANONYMIZED\.json receipt/);
   setJson(d, "goldens/g1/ANONYMIZED.json", { checker: "anonymize-for-sharing", fingerprint: "sha256:def", counts: { person: 2 } });
-  assert.equal(level(d), "superskill");
+  assert.match(scoreSkill(d, { now: NOW }).findings.map((f) => f.message).join(" "), /real goldens \(optional evidence\): g1/);
   assert.equal(scoreSkill(d, { now: NOW }).findings.some((f) => f.message.includes("ANONYMIZED")), false);
 });
 
 test("a private golden (kept outside the skill) counts, and approve writes into it", () => {
   const d = copySkill("superskill");
   rmSync(join(d, "goldens"), { recursive: true });
-  assert.equal(level(d), "tested");
   const priv = tmp("private-goldens-");
   const g = join(priv, "superskill", "g-2026-10-06");
   mkdirSync(g, { recursive: true });
@@ -61,14 +63,15 @@ test("a private golden (kept outside the skill) counts, and approve writes into 
   setJson(g, "PROVENANCE.json", REAL);
   const name = loadSkill(d).data.name;
   assert.equal(name, "superskill", "the skill name decides the private folder");
-  // Not approved yet: tested.
-  assert.equal(level(d, { privateGoldens: priv }), "tested");
+  const real = (o) => rule("golden-approved").check(loadSkill(d), { now: NOW, ...o }).map((f) => f.message).join(" ");
+  // Not approved yet: not reported as real evidence.
+  assert.doesNotMatch(real({ privateGoldens: priv }), /real goldens/);
   const r = spawnSync(process.execPath, [BIN, "approve", d, "g-2026-10-06", "--private-goldens", priv, "--approved-by", "Ann Example", "--via", "AskUserQuestion", "--rationale", "accepted when it ran"], { encoding: "utf8", env: { ...process.env, SUPERSKILL_NOW: "2026-09-28T12:00:00Z" } });
   assert.equal(r.status, 0, r.stderr);
   assert.ok(existsSync(join(g, "APPROVAL.json")), "the approval lands beside the private golden");
   assert.ok(!existsSync(join(d, "goldens")), "nothing is written into the skill");
-  assert.equal(level(d, { privateGoldens: priv }), "superskill");
-  assert.equal(level(d), "tested", "without the private folder the skill has no golden");
+  assert.match(real({ privateGoldens: priv }), /real goldens \(optional evidence\): g-2026-10-06/);
+  assert.equal(real({}), "", "without the private folder the skill has no golden");
 });
 
 test("GUARD: init placeholders are not evals (evals-real)", () => {
@@ -126,10 +129,13 @@ test("acceptedRate counts judged runs only, in the window, and never a sandbox r
   assert.deepEqual(acceptedRate([f], { now: NOW, days: 30 }), { judged: 3, accepted: 2, synthetic: 1 });
 });
 
-test("the doctor prints the real accepted rate beside the level", () => {
+test("with no record file, real-runs reads Freedom's ledger live, per model+harness, never a sandbox run", () => {
   const d = copySkill("superskill");
-  writeFileSync(join(d, "invocations.jsonl"), [JSON.stringify({ started: "2026-09-20T10:00:00Z", next_turn: "go", outcome: "one_shot" }), JSON.stringify({ started: "2026-09-21T10:00:00Z", next_turn: "correction_suspect", corrected_after: true })].join("\n") + "\n");
-  const info = scoreSkill(d, { now: NOW }).findings.find((f) => f.rule === "real-use");
-  assert.match(info.message, /1 of 2 judged runs accepted \(50%\)/);
-  assert.equal(info.severity, "info");
+  rmSync(join(d, "evals/real-runs.json"));
+  const rec = (o) => JSON.stringify({ skill: "superskill", started: "2026-09-20T10:00:00Z", outcome: "succeeded", model: "claude-opus-5-5", harness: "claude-code", ...o });
+  writeFileSync(join(d, "invocations.jsonl"), [rec({}), rec({}), rec({}), rec({}), rec({ interventions: [{ kind: "correction" }] }), rec({ synthetic: true }), rec({ model: "gpt-6", harness: "codex" })].join("\n") + "\n");
+  const msgs = scoreSkill(d, { now: NOW }).findings.filter((f) => f.rule === "real-runs").map((f) => `${f.severity} ${f.message}`);
+  assert.ok(msgs.includes("info real runs, claude-opus-5-5 / claude-code: 4 of 5 one-shot (80%)"), msgs.join("\n"));
+  assert.ok(msgs.includes("info real runs, gpt-6 / codex: 1 of 1 one-shot (100%)"), msgs.join("\n"));
+  assert.equal(level(d), "superskill");
 });

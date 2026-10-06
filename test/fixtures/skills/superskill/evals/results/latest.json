@@ -2,8 +2,16 @@
   "run_at": "2026-09-20T10:00:00Z",
   "harness": "claude",
   "model": "claude-opus-5-5",
+  "skill_sha": "40da87dcd3f8aeb114e2796d4608247dc1dd728950ea14b9ca9beccf63e461ba",
   "cases": 4,
+  "repeat": 3,
   "with_skill": { "pass_rate": 1.0, "mean_ms": 21000, "mean_tokens": 4100 },
   "without_skill": { "pass_rate": 0.33, "mean_ms": 18000, "mean_tokens": 3900 },
-  "per_case": []
+  "per_case": [
+    { "id": "1", "with_skill": { "runs": 3, "passes": 3 }, "without_skill": { "runs": 3, "passes": 1 }, "failures": [] },
+    { "id": "2", "with_skill": { "runs": 3, "passes": 3 }, "without_skill": { "runs": 3, "passes": 1 }, "failures": [] },
+    { "id": "3", "with_skill": { "runs": 3, "passes": 3 }, "without_skill": { "runs": 3, "passes": 1 }, "failures": [] },
+    { "id": "m1", "with_skill": { "runs": 3, "passes": 3 }, "without_skill": { "runs": 3, "passes": 1 }, "failures": [] }
+  ],
+  "triggers": { "cases": 12, "runs": 36, "passes": 35, "pass_rate": 0.972, "per_query": [] }
 }

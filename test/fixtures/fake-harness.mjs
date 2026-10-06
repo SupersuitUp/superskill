@@ -8,8 +8,13 @@ process.stdin.on("end", () => {
   const req = JSON.parse(input);
   // What the run's process was given, for the test that a sandbox run is never recorded as a real use.
   if (process.env.FAKE_ENV_LOG) appendFileSync(process.env.FAKE_ENV_LOG, JSON.stringify({ ledger: process.env.FREEDOM_SKILL_LEDGER ?? null, sandbox: process.env.SUPERSKILL_SANDBOX ?? null, cwd: req.cwd ?? null }) + "\n");
+  if (req.mode === "trigger") {
+    // Loads the skill for anything about a status, a summary or a done list; never otherwise.
+    process.stdout.write(JSON.stringify({ triggered: /\b(status|summary|done list|update from|get done)\b/i.test(req.query) && !/(uptime|1:1|PDF)/i.test(req.query) }));
+    return;
+  }
   if (req.mode === "case") {
-    process.stdout.write(JSON.stringify({ output: req.withSkill ? `SKILLED ${req.prompt}` : "plain answer", tokens: req.withSkill ? 120 : 100, model: "fake-model-1" }));
+    process.stdout.write(JSON.stringify({ output: req.withSkill ? `SKILLED ${req.prompt.replace(/(\w[^,:]*), \1/g, "$1")}` : "plain answer", tokens: req.withSkill ? 120 : 100, model: "fake-model-1" }));
   } else {
     const pass = /<output>\nSKILLED/.test(req.prompt);
     process.stdout.write(JSON.stringify({ output: `Verdict: {"pass": ${pass}, "reason": "fake"}` }));

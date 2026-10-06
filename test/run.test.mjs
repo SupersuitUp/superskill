@@ -33,14 +33,17 @@ test("collectCases includes goldens and estimateCalls counts grader calls", () =
   const cases = collectCases(join(FIX, "skills", "superskill"));
   assert.deepEqual(cases.map((c) => c.id), ["1", "2", "3", "m1", "golden:g1"]);
   // 5 cases x 3 x 2 = 30 runs; plain-language: case 1 has one, golden has one -> 2 x 3 x 2 = 12
-  assert.deepEqual(estimateCalls(cases, 3), { runs: 30, grader: 12, total: 42 });
+  assert.deepEqual(estimateCalls(cases, 3), { runs: 30, grader: 12, triggers: 0, total: 42 });
+  // and each trigger query is one run per repeat
+  assert.deepEqual(estimateCalls(cases, 3, 12), { runs: 66, grader: 12, triggers: 36, total: 78 });
 });
 
 test("--run refuses without --yes when no terminal, after printing the estimate", () => {
   const d = copySkill("tested");
   const r = run("doctor", d, "--run");
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /estimated model calls: 24/);
+  assert.match(r.stderr, /estimated model calls: 60/);
+  assert.match(r.stderr, /12 triggers x 3/);
   assert.match(r.stderr, /--yes/);
   assert.ok(!existsSync(join(d, "evals/results/latest.json")));
 });

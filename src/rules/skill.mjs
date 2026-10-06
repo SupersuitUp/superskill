@@ -26,6 +26,63 @@ function proseLines(body) {
     return { line, fenced };
   });
 }
+// A dated incident story, as written in real skills: "Earned 2026-09-08", "(Gary, 2026-09-16:
+// ...)", "Wilson, live, 2026-09-05: *"...", "on 2026-09-13 the in-process version sat...",
+// "until 2026-09-21 the flag...", "measured on 2026-09-20", "(2026-09-30, #324)",
+// "- 2026-09-15 (#147): ...". Matched per paragraph, because hard-wrapped prose puts the name on
+// one line and its date on the next. Tuned against Freedom's 103 shipped skills (2026-10-06): a
+// date in an example, a template, a code span, a fence, or a provenance line ending at the date
+// ("vendored ... on 2026-09-19.") is not a story.
+const D = "20\\d\\d-\\d\\d-\\d\\d";
+const HISTORY = [
+  new RegExp(`\\bearned\\b[^.]{0,24}?\\b(${D})`, "gi"),
+  new RegExp(`\\([^()\\n]{0,80}?\\b(${D})\\s*[:),.;—]`, "g"),
+  new RegExp(`(?:\\b[A-Z][\\w'-]+|\\b(?:operator|owner|maintainer|client|teammate)),\\s*(?:[a-z]+,\\s*)?(${D})\\s*[,:]`, "g"),
+  new RegExp(`\\b(?:on|until|since|before|after)\\s+(${D})\\b`, "gi"),
+  new RegExp(`\\bfrom\\s+(${D})\\s+\\(`, "gi"),
+  new RegExp(`\\b(?:measured|reported|found|caught|hit|corrected|retired|aligned|renamed|refused|broke|failed|observed|verified|watched|fixed|softened|flipped|restored|removed|changed|added|introduced)\\s+(?:[a-z]+\\s+)?(?:on\\s+|in\\s+)?(${D})`, "gi"),
+  new RegExp(`\\b(?:rule|ruling|default|correction|incident|reversal)\\s+(?:of|from)\\s+(${D})`, "gi"),
+  new RegExp(`\\bthe\\s+(${D})\\b`, "gi"),
+  new RegExp(`(${D})'s\\b`, "g"),
+  new RegExp(`^\\s*[-*]\\s+[*_]*(${D})[*_]*\\s*[(:]`, "gm"),
+];
+const EXAMPLE = /\b(e\.g\.|example|for instance|such as)\b/i;
+
+/**
+ * Body lines that narrate a dated incident, outside code fences and inline code: one entry per
+ * line that carries the date of a story.
+ */
+export function historyLines(body) {
+  const lines = proseLines(body);
+  const hit = new Map();
+  let para = [];
+  const flush = () => {
+    if (!para.length) return;
+    // Join the paragraph, remembering where each line starts, so a match maps back to its line.
+    let text = "";
+    const starts = [];
+    for (const { i, line } of para) { starts.push({ i, at: text.length }); text += line.replace(/`[^`]*`/g, "``") + "\n"; }
+    for (const re of HISTORY) {
+      re.lastIndex = 0;
+      for (const m of text.matchAll(re)) {
+        const at = m.index + m[0].lastIndexOf(m[1]);
+        const owner = [...starts].reverse().find((s) => s.at <= at);
+        const raw = lines[owner.i].line;
+        if (EXAMPLE.test(raw)) continue;
+        if (!hit.has(owner.i)) hit.set(owner.i, raw.trim());
+      }
+    }
+    para = [];
+  };
+  lines.forEach(({ line, fenced }, i) => {
+    // A heading, an HTML comment (a generator's provenance stamp) and a fence are not prose.
+    if (fenced || !line.trim() || /^\s*(#|<!--)/.test(line)) { flush(); return; }
+    para.push({ i, line });
+  });
+  flush();
+  return [...hit.entries()].sort((a, b) => a[0] - b[0]).map(([i, text]) => ({ lineNo: i + 1, text }));
+}
+
 const normRule = (line) => line.toLowerCase().replace(/[*_`>#-]/g, "").replace(/\s+/g, " ").trim();
 const broken = (ctx) => Boolean(ctx.error || ctx.parseError);
 const str = (v) => (typeof v === "string" ? v : "");
@@ -192,6 +249,20 @@ export const skillRules = defineRules([
       if (!late.length) return [];
       const shown = late.slice(0, 3).map((r) => `line ${r.lineNo}: ${r.text.slice(0, 80)}`).join("; ");
       return [f("warn", `${late.length} hard rule(s) sit past the first ~${FOLD_TOKENS} tokens and would not survive compaction (${shown})`, "Restate them in a short Rules section near the top, or move them up. Length is fine; the rules just need to be above the fold. Step-specific detail can move into step files (steps/<step>.md) that are read fresh when the step comes up.")];
+    },
+  },
+  {
+    // 0.6.0: SKILL.md is instructions, read on every run. The story of the incident that earned
+    // a rule is history: it belongs in MISSES.md, under the miss it records, and SKILL.md keeps
+    // the rule and a one-line why. Anthropic's authoring guidance: avoid time-sensitive content.
+    id: "history-in-skill",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const hits = historyLines(ctx.body);
+      if (!hits.length) return [];
+      const shown = hits.slice(0, 3).map((h) => `line ${h.lineNo + ctx.bodyStartLine - 1}: ${h.text.slice(0, 70)}`).join("; ");
+      return [f("warn", `${hits.length} dated incident stor${hits.length === 1 ? "y" : "ies"} in SKILL.md (${shown})`, "Move each story into MISSES.md as a miss entry (id, date, what happened, fix, eval, optional quote) and leave the rule plus a one-line why in SKILL.md.")];
     },
   },
   {

@@ -67,38 +67,39 @@ test("triggers-present fails when missing, short, or one-sided", () => {
 
 // ---- superskill
 
-test("golden-approved fails with no golden and with an unapproved one", () => {
-  assert.deepEqual(sev("golden-approved", skill("tested")), ["fail"]);
+test("GUARD: golden-approved never fails (0.6.0): no golden, an unapproved one, an invented one are all fine", () => {
+  assert.deepEqual(sev("golden-approved", skill("tested")), []);
   const d = copySkill("superskill");
   rmSync(join(d, "goldens/g1/APPROVAL.json"));
-  assert.deepEqual(sev("golden-approved", d), ["fail"]);
-  setJson(d, "goldens/g1/APPROVAL.json", { approved_by: "", approved_at: "2026-09-10" });
-  assert.deepEqual(sev("golden-approved", d), ["fail"]);
+  assert.deepEqual(sev("golden-approved", d), []);
+  setJson(d, "goldens/g1/PROVENANCE.json", { source: "synthetic" });
+  assert.deepEqual(sev("golden-approved", d), []);
+  rmSync(join(d, "goldens"), { recursive: true });
+  assert.equal(level(d), "superskill", "a superskill needs no golden at all");
 });
 
-test("GUARD: golden-approved says when approvals rest on judgment only, and stops once an outcome is recorded", () => {
+test("golden-approved warns on a golden file that does not parse, and names the weight of real goldens", () => {
   const d = copySkill("superskill");
-  const judgmentOnly = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((x) => x.message).join(" ");
-  assert.match(judgmentOnly, /judgment only, no outcome recorded yet/);
-  setJson(d, "goldens/g1/APPROVAL.json", { approvals: [
-    { approved_by: "Ann Example", approved_at: "2026-09-10T15:00:00Z", rationale: "Right shape", basis: "judgment" },
-    { approved_by: "Ann Example", approved_at: "2026-09-20T15:00:00Z", rationale: "My manager used it as is", basis: "outcome", evidence: "Sent 2026-09-19, adopted as the team template" },
-  ] });
-  const proven = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((x) => x.message).join(" ");
-  assert.doesNotMatch(proven, /judgment only/);
-  assert.match(proven, /g1: 1 judgment, 1 outcome/);
+  const msgs = rule("golden-approved").check(loadSkill(d), { now: NOW }).map((x) => x.message).join(" ");
+  assert.match(msgs, /g1: 1 judgment, 0 outcome/);
+  assert.match(msgs, /no expectations\.json/);
+  writeFileSync(join(d, "goldens/g1/APPROVAL.json"), "{ not json");
+  assert.deepEqual(sev("golden-approved", d), ["warn"]);
+  setJson(d, "goldens/g1/expectations.json", ["contains:Atlas"]);
+  assert.doesNotMatch(rule("golden-approved").check(loadSkill(d), { now: NOW }).map((x) => x.message).join(" "), /no expectations/);
 });
 
 test("misses-log-present fails with no MISSES.md", () => {
   assert.deepEqual(sev("misses-log-present", skill("tested")), ["fail"]);
 });
 
-test("no-stale-open-miss fails only past 14 days", () => {
+test("GUARD: misses-closed fails on any open miss, however recent", () => {
   const d = copySkill("superskill");
-  writeFileSync(join(d, "MISSES.md"), "# Misses\n\n## m1 · 2026-09-20 · open\n- What happened: x\n- Fix:\n- Eval:\n");
-  assert.deepEqual(sev("no-stale-open-miss", d), []);
-  writeFileSync(join(d, "MISSES.md"), "# Misses\n\n## m1 · 2026-09-01 · open\n- What happened: x\n- Fix:\n- Eval:\n");
-  assert.deepEqual(sev("no-stale-open-miss", d), ["fail"]);
+  writeFileSync(join(d, "MISSES.md"), "# Misses\n\n## m1 · 2026-09-27 · open\n- What happened: x\n- Fix:\n- Eval:\n");
+  assert.deepEqual(sev("misses-closed", d), ["fail"]);
+  assert.equal(level(d), "tested");
+  writeFileSync(join(d, "MISSES.md"), "# Misses\n\n## m1 · 2026-09-15 · fixed\n- What happened: x\n- Fix: abc\n- Eval: m1\n");
+  assert.deepEqual(sev("misses-closed", d), []);
 });
 
 test("fixed-miss-has-eval fails when the eval id is absent or empty", () => {

@@ -1,4 +1,5 @@
-// goldens/<id>/: input.md, the approved output (output.md, or any other non-input file),
+// goldens/<id>/: input.md, expectations.json (0.6.0: the checklist a right answer meets,
+// graded by --run), the reference output (output.md, or any other non-input file),
 // APPROVAL.json written by a person: { approvals: [{approved_by, approved_at, skill_sha,
 // rationale, basis, evidence}] } (or the single-approval shape from before 0.3.0),
 // PROVENANCE.json saying where the example came from (0.5.0), and, for an anonymized twin of a
@@ -11,7 +12,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /** Files in a golden folder that describe it rather than being its input or output. */
-export const META_FILES = new Set(["APPROVAL.json", "PROVENANCE.json", "ANONYMIZED.json"]);
+export const META_FILES = new Set(["APPROVAL.json", "PROVENANCE.json", "ANONYMIZED.json", "expectations.json"]);
 
 /** Where goldens are read from: the skill's own goldens/, then the private folder for its name. */
 export function goldenRoots(dir, { privateGoldens = null, name = null } = {}) {
@@ -40,6 +41,8 @@ export function readGoldens(dir, opts = {}) {
       const prov = readJsonFile(join(gdir, "PROVENANCE.json"));
       const anon = readJsonFile(join(gdir, "ANONYMIZED.json"));
       const provenance = prov.value;
+      const exp = readJsonFile(join(gdir, "expectations.json"));
+      const expList = Array.isArray(exp.value) ? exp.value : Array.isArray(exp.value?.expectations) ? exp.value.expectations : [];
       out.push({
         id,
         dir: gdir,
@@ -54,6 +57,10 @@ export function readGoldens(dir, opts = {}) {
         provenanceError: prov.error,
         anonymized: anon.value,
         origin: originOf(provenance, anon.value),
+        // 0.6.0: what a right answer does, graded by --run. output.md is the reference that
+        // proves the task is solvable; it is no longer what the output has to look like.
+        expectations: expList.filter((x) => typeof x === "string" && x.trim()),
+        expectationsError: exp.error,
       });
     }
   }

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.6.0 (2026-10-06)
+
+**A skill's embodiment is what it has absorbed, not one run of it.** 0.5.0 made a golden from a
+real run the top-level requirement. Its first real test reversed it: nine harvested candidates,
+each a real accepted run, and none was the standard the skill should be held to. The tests and
+fixes a skill has absorbed are. **Breaking for anyone at superskill today:** the top level now
+needs a real-run record and a 0.6.0 `--run` (one that records its `skill_sha` and the triggers).
+
+- **Superskill is now** every miss closed with a regression eval (`misses-closed`, which replaces
+  `no-stale-open-miss`: an open miss fails however recent it is), and `evals-pass`: the last
+  `--run` was against the current `SKILL.md`, the suite passed (default 90% of runs), every fixed
+  miss's regression eval passed every run, and the trigger evals were right (default 90%).
+  `run-evidence` and `run-fresh` stand.
+- **`real-runs`:** a real-run record where one model+harness pair, alone, has at least 5 real runs
+  at 80% one-shot (no correction). Every pair is reported; pairs are never pooled, and a pair that
+  says `unknown` never counts. The record is a harness-neutral file, `superskill-real-runs/1`, read
+  from `--real-runs <dir>` / `SUPERSKILL_REAL_RUNS`, then `evals/real-runs.json`, then Freedom's
+  skill ledger live. It replaces `real-use`.
+- **Configurable bar:** `--min-real-runs`, `--min-one-shot`, `--min-pass-rate`,
+  `--min-trigger-rate` (and `SUPERSKILL_MIN_*`). Never frontmatter: a skill cannot lower its own bar.
+- **Goldens are optional evidence.** `golden-approved` never fails. A golden is an eval graded on
+  `goldens/<id>/expectations.json`, a checklist of expected behavior (grade outcomes, not paths);
+  `output.md` is the reference that proves the task solvable. Provenance rules still say which
+  goldens are real runs.
+- **`doctor --run` runs the trigger evals** (did the harness load the skill exactly when it
+  should) and writes `skill_sha` and `triggers` into `latest.json`.
+- **`history-in-skill` (warn, level skill):** a dated incident story in `SKILL.md` ("Earned
+  2026-09-08", "(Gary, 2026-09-16: ...)", "on 2026-09-13 a session ...") belongs in `MISSES.md`,
+  which now holds a story's full entry: id, date, what happened, fix, eval, optional `Quote:`, with
+  indented continuation lines. Tuned on Freedom's 103 shipped skills. Still no line-count rule.
+- `superskill miss` takes `--quote` and `--date`.
+- Tests: 17 new; each guard broken on purpose and seen red (a stale-sha pass counting, pooled pairs
+  counting, an unknown pair counting, an open miss passing, a half-passing regression eval passing,
+  examples and provenance stamps flagged as history).
+
 ## 0.5.0 (2026-10-06)
 
 **Superskill needs a golden from a real run.** Before, any golden a person approved counted, so a

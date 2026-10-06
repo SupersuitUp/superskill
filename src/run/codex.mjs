@@ -31,3 +31,17 @@ export function ask(prompt, { model } = {}) {
   const cwd = prepareWorkspace({ skillDir: null, skillName: null });
   return call(prompt, cwd, model).output;
 }
+
+/**
+ * Did Codex load the skill for this query? Codex reads a skill's SKILL.md when it uses it, so the
+ * JSON event stream mentioning <name>/SKILL.md is a load.
+ */
+export function triggerCase({ skillDir, skillName, query, model }) {
+  const cwd = prepareWorkspace({ skillDir, skillName, linkAt: ".agents/skills" });
+  const args = ["exec", "--json", "--skip-git-repo-check", "-C", cwd];
+  if (model) args.push("-m", model);
+  args.push(query);
+  const r = spawnSync("codex", args, { cwd, env: sandboxEnv(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 15 * 60 * 1000 });
+  if (r.error) throw Object.assign(new Error(`codex failed to start: ${r.error.message}`), { code: "SUPERSKILL" });
+  return { triggered: String(r.stdout).includes(`${skillName}/SKILL.md`), failed: r.status !== 0 && !r.stdout, cwd };
+}

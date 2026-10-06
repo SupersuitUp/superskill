@@ -4,8 +4,9 @@ Score any agent skill folder as **skill**, **tested**, or **superskill**, and ge
 to-do list for the next level. Works on skills for Claude Code, Codex, or any harness that
 reads the [Agent Skills](https://agentskills.io) format. Zero dependencies, Node 20 or later.
 
-A superskill runs on frontier intelligence, is checked against examples you approved, and is
-fixed every time it gets something wrong. [What that means](https://supersuit.wiki/concepts/superskill);
+A superskill is fixed every time it gets something wrong, with a test that keeps each fix fixed;
+passes its whole eval suite on a current model; and does the job for real people without a
+correction, often enough to count. [What that means](https://supersuit.wiki/concepts/superskill);
 [the standard](SPEC.md).
 
 ## 30 seconds
@@ -34,12 +35,17 @@ file error. `--json` prints one JSON document and nothing else.
 
 1. **skill**: a valid `SKILL.md` (name matches the folder, description of 1024 characters or
    fewer that says when to use it, hard rules above the compaction fold, headings in long bodies, nothing said twice), references one level deep, no
-   hard-coded machine paths, nothing that reads like a prompt injection.
+   hard-coded machine paths, nothing that reads like a prompt injection. It warns on dated
+   incident stories in `SKILL.md`, which belong in `MISSES.md`.
 2. **tested**: at least three task evals with checks a machine can verify, and a trigger set of
    at least ten requests, some that should load the skill and some near-misses that should not.
-3. **superskill**: a golden from a real run, accepted when it ran and approved by a person; no miss open longer than 14 days and every fixed
-   miss guarded by an eval; a recent `--run` on file where the skill beats the same task done
-   without it. "Recent" follows `metadata.cadence` (a weekly skill's proof lasts 30 days).
+3. **superskill**: no open miss, and every fixed miss guarded by a regression eval; a recent
+   `--run` against the `SKILL.md` that is there now, where the suite passes (90%), every
+   regression eval passes every run, the trigger set is 90% right, and the skill beats the same
+   task done without it; and a real-run record where one model+harness has at least 5 real runs
+   at 80% one-shot (no correction). Pairs are never pooled. "Recent" follows `metadata.cadence`
+   (a weekly skill's proof lasts 30 days). Goldens are optional evidence. Every threshold is a
+   flag (`--min-real-runs`, `--min-one-shot`, `--min-pass-rate`, `--min-trigger-rate`).
 
 Every rule and threshold is in [SPEC.md](SPEC.md).
 
@@ -52,7 +58,7 @@ Every rule and threshold is in [SPEC.md](SPEC.md).
 | `superskill doctor <skill> --run [--harness claude\|codex] [--repeat 3] [--yes]` | Run the evals for real, with and without the skill, and write `evals/results/latest.json`. **The only command that spends model calls**; it prints an estimate and asks first. |
 | `superskill init <skill>` | Add missing `evals/`, `goldens/`, `MISSES.md`. Never overwrites. |
 | `superskill init <skill> --from-session <transcript>` | Turn the session where you did the job by hand into the first eval and a golden candidate (Claude Code `.jsonl`, or any text file as the request). |
-| `superskill miss <skill> "<what happened>" [--expected "..."]` | Log a time the skill got it wrong. |
+| `superskill miss <skill> "<what happened>" [--expected "..."] [--quote "..."] [--date YYYY-MM-DD]` | Log a time the skill got it wrong, or the story behind a rule it learned. |
 | `superskill fix <skill> <miss-id> --eval <id> [--commit <sha>]` | Close a miss. Refuses without an eval that exists. |
 | `superskill approve <skill> <golden> [--basis judgment\|outcome] [--rationale ...] [--evidence ...]` | A person signs off on a golden, saying why and what it rests on: `judgment` (it reads right) or `outcome` (it produced a checkable result, with evidence). At a terminal it asks for your name; from your phone, an agent records your tap with `--approved-by` and `--via`. Approvals accumulate. |
 | `superskill collection <folder...> [--budget <chars>] [--overlap 0.5]` | Listing budget used, descriptions that get cut off, pairs of skills an agent could confuse (with near-miss triggers to add). |
@@ -70,9 +76,10 @@ my-skill/
   SKILL.md
   evals/evals.json          task evals (Anthropic skill-creator format)
   evals/triggers.json       should / should-not load (skill-creator format)
-  goldens/<id>/             input.md, output.md, PROVENANCE.json, APPROVAL.json
-  MISSES.md                 every miss, open or fixed with its eval
-  evals/results/latest.json the last --run
+  goldens/<id>/             optional: input.md, expectations.json, output.md, PROVENANCE.json, APPROVAL.json
+  MISSES.md                 every miss and its story, open or fixed with its eval
+  evals/results/latest.json the last --run (which SKILL.md it proved, suite and triggers)
+  evals/real-runs.json      real uses per model+harness, one-shot or not (or --real-runs <dir>)
 ```
 
 Harnesses ignore folders they do not know, so none of this changes how the skill loads.
@@ -84,13 +91,16 @@ Harnesses ignore folders they do not know, so none of this changes how the skill
 - Codex: the skill is linked at `.agents/skills/<name>`. Codex cannot switch skills off, so a
   copy installed in `~/.agents/skills` can leak into the baseline; move it aside while proving.
 - Machine checks (`contains:`, `regex:`, `file_exists:`) are free. Each plain-language expectation
-  and each golden costs one grader call per run.
+  costs one grader call per run.
+- Trigger evals run each query in `evals/triggers.json` with the skill installed and record
+  whether the harness loaded it (Claude Code: a `Skill` call or a read of its `SKILL.md`; Codex:
+  a read of its `SKILL.md`).
 
 ## Freedom
 
 Nothing here needs [Freedom](https://getfreedom.wiki). If a skill has Freedom's `HDSOP.md`, the
 doctor shows it as a bonus; `miss import --freedom-ledger` reads Freedom's run ledger as plain
-files. `superskill snippet` gives any agent the same habits with no Freedom installed.
+files, and with no `evals/real-runs.json` the doctor reads the real-run record from it too. `superskill snippet` gives any agent the same habits with no Freedom installed.
 
 ## Releasing
 
