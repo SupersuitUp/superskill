@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.1 (2026-10-22)
+
+- **`superskill hook` no longer mistakes the harness for the person.** A background task finishing
+  (`<task-notification>`), a system notice or another session's message reaches the hook like a
+  typed message. It ended the turn, so a Stop after it missed the skill's failures, and its words
+  ("fix", "broken") could read as a correction. Both now skip it. Found the same day in Freedom's
+  run ledger, where the same notices were counted as the person stepping into a run.
+
 ## 0.7.0 (2026-10-22)
 
 **A superskill judges its own runs.** After a run that did not go cleanly, the agent judges what

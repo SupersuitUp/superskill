@@ -45,9 +45,14 @@ const rows = (file) => {
   } catch { return []; }
 };
 const blocks = (row) => (Array.isArray(row?.message?.content) ? row.message.content : []);
+const textOf = (row) => typeof row?.message?.content === "string" ? row.message.content
+  : blocks(row).filter((b) => b?.type === "text").map((b) => b.text).join("\n");
+/** The harness speaking (a background task finished, a system notice), which is not the person. */
+const HARNESS = [/^\s*<task-notification>/, /^\s*\[SYSTEM NOTIFICATION/, /^\s*<system-reminder>/, /^\s*Another Claude session sent a message/];
+export const isHarnessPrompt = (text) => HARNESS.some((re) => re.test(String(text ?? "")));
 /** A message the person typed: a user row with no tool result that the harness did not inject. */
 const typed = (row) => row?.type === "user" && !row.isMeta && !row.isSidechain && !row.isCompactSummary
-  && !blocks(row).some((b) => b?.type === "tool_result");
+  && !blocks(row).some((b) => b?.type === "tool_result") && !isHarnessPrompt(textOf(row));
 
 /** The skill runs in the turn after the person's last message: [{ id, skill, tool_failures }]. */
 export function lastTurnRuns(transcript) {
@@ -81,7 +86,7 @@ export function onStop(payload) {
 }
 
 export function onPrompt(payload) {
-  if (!payload || !payload.transcript_path || !readsLikeCorrection(payload.prompt)) return null;
+  if (!payload || !payload.transcript_path || isHarnessPrompt(payload.prompt) || !readsLikeCorrection(payload.prompt)) return null;
   const runs = lastTurnRuns(rows(payload.transcript_path));
   const run = runs[runs.length - 1];
   if (!run) return null;
