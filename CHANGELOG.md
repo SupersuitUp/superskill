@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.0 (2026-10-22)
+
+**A superskill judges its own runs.** After a run that did not go cleanly, the agent judges what
+the skill got wrong and routes the fix by ownership: the owner fixes it at the source, with a
+regression eval, bumps the version and releases it; anyone else suggests it to the owner. No rule
+fails a skill over this; it is the habit the misses rules score.
+
+- **`superskill retro <skill>`**: who owns the skill (a local folder or a remote-less repo is the
+  person's own; a GitHub repo is theirs when gh says they can push; an installed plugin copy is
+  traced to its `plugin.json` repository and is never the place to edit) and the steps for each
+  side. Exit 0 when you own it.
+- **`superskill hook install`**: a Stop hook and a UserPromptSubmit hook for Claude Code that nudge
+  the agent once per run, after tool failures or a message that reads like a correction.
+- **`src/retro.mjs`**: the rule as pure functions with no imports (`retroReasons`, `decideOwner`,
+  `retroContext`), so a harness can vendor it byte for byte. Freedom does.
+- SPEC: the clause "Judges its own runs" and a section, The retro. The snippet teaches it.
+
 ## 0.6.1 (2026-10-06)
 
 - **`real-runs` reading Freedom's ledger live no longer counts a rescued run as one-shot.** Freedom

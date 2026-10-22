@@ -12,6 +12,8 @@ const COMMANDS = {
   approve: "../src/commands/approve.mjs",
   collection: "../src/commands/collection.mjs",
   snippet: "../src/commands/snippet.mjs",
+  retro: "../src/commands/retro.mjs",
+  hook: "../src/commands/hook.mjs",
 };
 
 const HELP = `superskill <command> [options]
@@ -23,6 +25,8 @@ Commands:
   fix <path> <miss-id> --eval  close a miss with the regression eval that guards it
   approve <path> <golden>      record a person's approval of a golden (terminal only)
   collection <folder>          listing budget, cut-off descriptions, overlapping skills
+  retro <path>                 after a run that went wrong: who fixes the skill, and how
+  hook install                 wire the retro into Claude Code (Stop + UserPromptSubmit)
   snippet                      print a block for AGENTS.md / CLAUDE.md
 
 Run "superskill <command> --help" for details. Spec: SPEC.md.

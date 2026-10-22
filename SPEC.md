@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.6.1** (2026-10-06). The reference checker is `@supersuit/superskill`; where this
+**Version 0.7.0** (2026-10-22). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -32,6 +32,7 @@ evidence.
 |---|---|---|
 | A skill at all | A valid `SKILL.md` under the Agent Skills spec, plus the hygiene rules below | `SKILL.md` |
 | Fixed every time it gets something wrong | A miss log where every miss is fixed, each with a regression eval that would catch it again, and the story of each fix | `MISSES.md` + `evals/evals.json` |
+| Judges its own runs | After a run that did not go cleanly, the run is judged and the fix routed by ownership: the owner fixes, guards and releases it; anyone else suggests it. A habit, not a scored rule; `superskill retro` and `superskill hook` carry it | the agent's session (see The retro) |
 | Runs on frontier intelligence | Its whole suite and trigger set last passed against the current `SKILL.md`, on a current model, recently, and beat the same task run without the skill | `evals/results/latest.json` |
 | Does the job for real | Enough real runs on one model+harness, enough of them one-shot (no correction) | `evals/real-runs.json` (or an operator's export, see below) |
 | Optional: an example a person approved | A golden: a real input, the checklist a right answer meets, a reference output, where it came from | `goldens/<id>/` (or a private folder) |
@@ -350,6 +351,30 @@ A **plugin** is a folder with `.claude-plugin/plugin.json` and `skills/<name>/`.
 a `version`; a `CHANGELOG.md` heading for that version; and files duplicated byte-for-byte across
 skills (a helper to share once). A plugin is a **superplugin** when every skill in it is a
 superskill and its own line has no fail.
+
+## The retro
+
+A superskill judges how its run went and improves itself. The misses rules above score what that
+leaves behind; this section is the habit that produces it, and no rule fails a skill over it.
+
+- **When.** A run that hit a tool failure, drew a correction during it, or was followed by a
+  message that reads like a correction. Never after a clean run, never for taste, and a skill that
+  spans the person's turns by design is not charged for them.
+- **The judgment.** What did the skill not know, or tell the agent wrong? "The cause was outside
+  the skill" (the network, a changed mind) is a complete answer.
+- **Who fixes it**, from `superskill retro <skill>`:
+  - **The owner**: a skill only this person has (a folder outside git, or a repo with no remote),
+    or one whose GitHub repo they can push to. Fix it at the source, never an installed copy (a
+    folder under `.claude-plugin/plugin.json` that is not a git checkout; its source is the
+    manifest's `repository`). Log the miss, add the regression eval first and see it fail, close
+    the miss, bump the version (`metadata.version` when the skill carries one) and release.
+  - **Anyone else**, or when ownership cannot be told: suggest the fix to the owner (an issue with
+    the defect, the repro and the change), approved by the person before it is posted.
+- **Wiring.** `superskill hook install` adds a Stop hook (a skill this turn hit tool failures) and
+  a UserPromptSubmit hook (the next message reads like a correction) to Claude Code. Each run is
+  nudged once; the hooks read the session transcript and store only which runs were nudged.
+  `src/retro.mjs` is the whole rule as pure functions with no imports, so a harness can vendor it
+  byte for byte and hold its copy to this file.
 
 ## Freedom interop
 
