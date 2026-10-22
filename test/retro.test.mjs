@@ -10,6 +10,8 @@ import { BIN, tmp } from "./helpers.mjs";
 import { retroReasons, decideOwner, retroContext, readsLikeCorrection } from "../src/retro.mjs";
 import { locate, withPushAccess, parseRepo } from "../src/source.mjs";
 import { lastTurnRuns, onStop, onPrompt, installInto, uninstallFrom } from "../src/commands/hook.mjs";
+import { readFileSync as rf } from "node:fs";
+const rows = (f) => rf(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 
 const run = (o = {}) => ({ id: "r1", skill: "demo", tool_failures: 0, interventions: [], ...o });
 const cli = (args, env = {}) => spawnSync(process.execPath, [BIN, ...args], { encoding: "utf8", env: { ...process.env, ...env } });
@@ -187,4 +189,12 @@ test("an installed copy with no repository is traced through its marketplace", (
     assert.deepEqual(own, { kind: "own", checkout: local });
     assert.match(decideOwner(own, "demo").steps[0], new RegExp(`source folder, ${local.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}, never the installed copy`));
   } finally { delete process.env.SUPERSKILL_PLUGINS_ROOT; }
+});
+
+test("a harness notice is not the person: it neither ends the turn nor reads as a correction", () => {
+  process.env.SUPERSKILL_HOME = tmp();
+  const notice = "<task-notification>\n<status>completed</status>\n<summary>fix the broken build</summary>\n</task-notification>";
+  const t = transcript([human("go"), skillCall("b", "demo"), result("y", true), human(notice)]);
+  assert.deepEqual(lastTurnRuns(rows(t)), [{ id: "b", skill: "demo", tool_failures: 1 }], "the notice does not start a new turn");
+  assert.equal(onPrompt({ session_id: "s", transcript_path: t, prompt: notice }), null, "its words are not the person's correction");
 });

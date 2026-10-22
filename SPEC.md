@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.7.0** (2026-10-22). The reference checker is `@supersuit/superskill`; where this
+**Version 0.7.1** (2026-10-22). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
