@@ -63,6 +63,8 @@ Every rule and threshold is in [SPEC.md](SPEC.md).
 | `superskill approve <skill> <golden> [--basis judgment\|outcome] [--rationale ...] [--evidence ...]` | A person signs off on a golden, saying why and what it rests on: `judgment` (it reads right) or `outcome` (it produced a checkable result, with evidence). At a terminal it asks for your name; from your phone, an agent records your tap with `--approved-by` and `--via`. Approvals accumulate. |
 | `superskill collection <folder...> [--budget <chars>] [--overlap 0.5]` | Listing budget used, descriptions that get cut off, pairs of skills an agent could confuse (with near-miss triggers to add). |
 | `superskill miss import <skill> --freedom-ledger [--ledger <file>]` | Import runs that needed correcting from Freedom's run ledger. |
+| `superskill retro <skill> [--json] [--no-network]` | After a run that went wrong: who fixes the skill. The owner fixes it at the source, with a regression eval, bumps and releases; anyone else suggests it. Exit 0 when you own it. |
+| `superskill hook install` | Wire the retro into Claude Code: a Stop hook and a UserPromptSubmit hook nudge the agent once after a run that hit failures or drew a correction. `hook uninstall` removes them. |
 | `superskill snippet` | Print a block for `AGENTS.md` / `CLAUDE.md` that teaches any agent these habits. |
 
 Each command takes `--help`.
