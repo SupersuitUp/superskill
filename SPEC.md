@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.8.0** (2026-10-25). The reference checker is `@supersuit/superskill`; where this
+**Version 0.8.1** (2026-10-25). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -337,7 +337,7 @@ Harness-neutral: any harness, ledger or script may write it, and the doctor only
 
 ## The essence
 
-**`ESSENCE.md` is the part of a skill that is meant to leave its owner's machine (0.8.0).** No
+**`ESSENCE.md`, the superskill essence, is the part of a skill that is meant to leave its owner's machine (0.8.0).** No
 skill fits everyone: a skill is full of its author's people, accounts, destinations and voice. The
 rigor that makes it work is not personal, and it is the part worth inheriting. An essence carries
 that rigor plus an interview, and the reader's own agent rebuilds the skill around the reader's
@@ -352,6 +352,8 @@ It is optional, it sits beside `SKILL.md`, and it has five parts, each a `##` he
 | `## What stays private` | the author's slots (people, destinations, accounts, voice), each named, never filled in |
 | `## The rebuild interview` | the questions that fill every slot, and what to read in the reader's own files first so nothing they already wrote down is asked |
 | `## Where it came from` | the author, how many real runs it has, and the corrections that shaped it, counted rather than narrated |
+
+**A well-made superskill makes its essence easy to extract.** Most of it is already in the folder: the rules in `SKILL.md` are the rigor, `metadata.reads` and `metadata.writes` name the slots the interview has to fill, and `MISSES.md` with the real-run record is where it came from, counted. Writing the essence is mostly lifting those out and removing what is personal; a skill whose essence cannot be lifted out that way is one whose rules and its author's life are still tangled together.
 
 The rebuild ends in a skill of the reader's own, written to this standard, whose `MISSES.md`
 starts empty: the author's misses are already absorbed into the rigor. An essence names no

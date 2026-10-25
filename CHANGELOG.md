@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1 (2026-10-25)
+
+- **It is called the superskill essence**, and the spec now says why a well-made superskill makes
+  it easy to extract: its rules are the rigor, its `reads`/`writes` name the slots, and its miss
+  log and real-run record are where it came from. Prose only; no rule changed.
+
 ## 0.8.0 (2026-10-25)
 
 - **The essence: the part of a skill meant to be shared.** `ESSENCE.md` beside `SKILL.md` carries
