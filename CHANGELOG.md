@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0 (2026-10-25)
+
+- **The essence: the part of a skill meant to be shared.** `ESSENCE.md` beside `SKILL.md` carries
+  the outcome, the rigor worth inheriting, the private slots, a rebuild interview and where it came
+  from, so another person's agent can rebuild the skill around their life without the original
+  file. New rule `essence-shape` (info / warn, never fails) checks the five parts. Skills may also
+  declare `metadata.reads` and `metadata.writes` as hypercontext record kinds.
+
 ## 0.7.1 (2026-10-22)
 
 - **`superskill hook` no longer mistakes the harness for the person.** A background task finishing

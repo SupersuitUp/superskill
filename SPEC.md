@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.7.1** (2026-10-22). The reference checker is `@supersuit/superskill`; where this
+**Version 0.8.0** (2026-10-25). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -22,6 +22,7 @@ evidence.
 - [Compatibility](#compatibility)
 - [Levels and rules](#levels-and-rules)
 - [File formats](#file-formats)
+- [The essence](#the-essence)
 - [Collections and plugins](#collections-and-plugins)
 - [Freedom interop](#freedom-interop)
 - [Versioning](#versioning)
@@ -98,6 +99,7 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 | `no-absolute-paths` | fail | no bundled text file (outside `evals/`, `goldens/` and test files such as `tests/`, `test_*.py`, `*.test.mjs`) contains a path starting `/Users/<name>`, `/home/<name>` or `C:\<name>` |
 | `injection-scan` | fail | no instruction file contains an override phrase ("ignore all previous instructions", "disregard the system prompt"), a download piped into a shell (`curl ... \| sh`), a base64-like run of 200+ characters, or an HTML comment that addresses the agent (`<!-- assistant: ...`) or pairs an action (send, read, upload, run...) with a secret or a URL |
 | `workflow-map` | info | a Freedom `HDSOP.md` is present (bonus, never required) |
+| `essence-shape` | info / warn | never fails. When an `ESSENCE.md` is present, it has all five parts of [the essence](#the-essence), each under its own `##` heading; warns naming any part that is missing |
 
 ### Level 2: tested
 
@@ -332,6 +334,39 @@ Harness-neutral: any harness, ledger or script may write it, and the doctor only
 **Where the doctor reads it**, first found wins: `<dir>/<skill-name>.json` where `<dir>` is
 `--real-runs` or `SUPERSKILL_REAL_RUNS` (an operator's own export, kept out of the skill); then
 `evals/real-runs.json` in the skill; then Freedom's skill ledger, read live (below).
+
+## The essence
+
+**`ESSENCE.md` is the part of a skill that is meant to leave its owner's machine (0.8.0).** No
+skill fits everyone: a skill is full of its author's people, accounts, destinations and voice. The
+rigor that makes it work is not personal, and it is the part worth inheriting. An essence carries
+that rigor plus an interview, and the reader's own agent rebuilds the skill around the reader's
+life. The essence is shared; `SKILL.md` stays private.
+
+It is optional, it sits beside `SKILL.md`, and it has five parts, each a `##` heading:
+
+| Part | What it holds |
+|---|---|
+| `## The outcome` | what is true when the skill has run, in one sentence anyone could check |
+| `## The rigor worth inheriting` | the steps and rules that make it work, which are not personal and were learned the hard way |
+| `## What stays private` | the author's slots (people, destinations, accounts, voice), each named, never filled in |
+| `## The rebuild interview` | the questions that fill every slot, and what to read in the reader's own files first so nothing they already wrote down is asked |
+| `## Where it came from` | the author, how many real runs it has, and the corrections that shaped it, counted rather than narrated |
+
+The rebuild ends in a skill of the reader's own, written to this standard, whose `MISSES.md`
+starts empty: the author's misses are already absorbed into the rigor. An essence names no
+private person and carries no secret; the hygiene rules that bind `SKILL.md` (no absolute paths,
+no injection) bind it too, because it is a bundled text file.
+
+**What a skill reads and writes.** A skill may declare the kinds of record it reads and writes,
+as comma-separated [hypercontext standard](https://hypercontext.wiki/standards) kinds in its
+metadata, so an essence's rebuild interview knows which of the reader's files to read first:
+
+```yaml
+metadata:
+  reads: friend, document
+  writes: piece
+```
 
 ## Collections and plugins
 
