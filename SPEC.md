@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.8.1** (2026-10-25). The reference checker is `@supersuit/superskill`; where this
+**Version 0.9.0** (2026-10-29). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -72,10 +72,14 @@ A skill is at the highest level whose rules, and every lower level's rules, repo
 Below `skill` it is `none`. `warn` and `info` never block a level. The doctor lists, for each
 skill, exactly which `fail`s stand between it and the next level.
 
-A line in a bundled file containing `superskill-ignore` is skipped by `no-absolute-paths` and
-`injection-scan`, for a deliberate example.
+A line in a bundled file containing `superskill-ignore` is skipped by `no-absolute-paths`,
+`injection-scan`, `asks-with-recommendation` and `no-self-menu`, for a deliberate example.
 
 ### Level 1: skill
+
+**A skill spends a person's attention only on what is theirs to decide.** It never puts a menu
+about itself in front of them (which mode, which step next, whether to continue). When it must
+ask, it asks once, leads with its recommendation, and says what the answer frees.
 
 | Rule | Severity | Threshold |
 |---|---|---|
@@ -94,6 +98,8 @@ A line in a bundled file containing `superskill-ignore` is skipped by `no-absolu
 | `history-in-skill` | warn | no dated incident story in the body outside code: "Earned 2026-09-08", "(Gary, 2026-09-16: ...)", "Wilson, 2026-09-05: \*"..."\*", "on 2026-09-13 a session ...", "until 2026-09-21 the flag ...", "measured 2026-09-20", "(2026-09-30, #324)", "- 2026-09-15 (#147): ...". Matched per paragraph, since a line wrap can split a name from its date. Not flagged: a line with "e.g." or "example", a date in a code span or fence, a heading, an HTML comment (a generator's provenance stamp), "as of <date>". The story goes in `MISSES.md` (below); `SKILL.md` keeps the rule and a one-line why. There is deliberately no line-count rule (retired 2026-09-28): length alone is never a defect. |
 | `navigable` | warn | a body over 300 lines has no run of more than 150 lines without a heading |
 | `no-repeated-paragraphs` | warn | no paragraph of 100+ characters appears twice |
+| `asks-with-recommendation` | warn | every instruction in `SKILL.md` or a step file to ask the person (`AskUserQuestion`, "ask the user", "confirm with", "check with") sits in a paragraph that names a recommendation ("Recommended", "recommend", "default") |
+| `no-self-menu` | warn | no instruction offers the person a choice about the skill's own running ("would you like me to continue", "what would you like to do next", "which mode") outside code fences. A line that forbids the menu (never, do not, avoid) is not counted, nor is a heading, nor a line that only describes a mode rather than asking which. |
 | `references-one-deep` | fail | a markdown file linked from `SKILL.md` links on to no further local file |
 | `long-reference-toc` | warn | every markdown file over 100 lines (other than `SKILL.md` and Freedom's `HDSOP.md`) has a table of contents in its first 30 lines (a line matching `/contents/i`, or three or more `- [x](#anchor)` lines) |
 | `no-absolute-paths` | fail | no bundled text file (outside `evals/`, `goldens/` and test files such as `tests/`, `test_*.py`, `*.test.mjs`) contains a path starting `/Users/<name>`, `/home/<name>` or `C:\<name>` |
@@ -326,6 +332,14 @@ Harness-neutral: any harness, ledger or script may write it, and the doctor only
   says the person rescued the run (Freedom's `succeeded_with_rescues`) is not one-shot either,
   whether or not the rescue was classified. A taste note is the person's preference, not the
   skill's defect, and does not break one-shot.
+- **A needless question breaks one-shot too.** A run that stopped to ask the person something the
+  skill could have decided (a default its own rules, files or workspace already settle, a name
+  that follows an existing pattern, a choice with a conventional answer) is not one-shot, even
+  when the person simply picked the option offered. A question is legitimate when the answer is
+  genuinely the person's: their judgment, taste or values; another person's consent; or an
+  action that is hard to undo or leaves the machine. A writer records a needless question as an
+  intervention of kind `needless_question`. A skill that spans the person's turns by design is
+  still charged for one.
 - `model` is the model id the harness ran (as the transcript or environment reports it);
   `harness` is `claude-code`, `codex`, or another harness's name. A writer that cannot tell
   writes `unknown`, never a guess. Counts only: the file carries no input, output or names, so it
@@ -394,8 +408,9 @@ superskill and its own line has no fail.
 A superskill judges how its run went and improves itself. The misses rules above score what that
 leaves behind; this section is the habit that produces it, and no rule fails a skill over it.
 
-- **When.** A run that hit a tool failure, drew a correction during it, or was followed by a
-  message that reads like a correction. Never after a clean run, never for taste, and a skill that
+- **When.** A run that hit a tool failure, drew a correction during it, was followed by a
+  message that reads like a correction, or stopped to ask something the skill could have
+  decided. Never after a clean run, never for taste, and a skill that
   spans the person's turns by design is not charged for them.
 - **The judgment.** What did the skill not know, or tell the agent wrong? "The cause was outside
   the skill" (the network, a changed mind) is a complete answer.
@@ -422,7 +437,7 @@ exist they are read as plain files:
 - `superskill miss import <skill> --freedom-ledger` reads `<skill>/invocations.jsonl` and
   `~/.freedom/ledger/skills/<plugin>/<skill>.jsonl`. Records are
   `{id, skill, started, outcome, interventions: [{kind, note|what}], errors}`. A record with an
-  intervention of kind `redirect`, `correction` or `rescue`, or with `outcome: "failed"`, becomes
+  intervention of kind `redirect`, `correction`, `rescue` or `needless_question`, or with `outcome: "failed"`, becomes
   an open miss dated from `started`; `taste` interventions are skipped; the ledger id is kept on
   a `Source:` line so a record is never imported twice. A record with `synthetic: true` (a
   sandbox run) is skipped. A record corrected after it handed back (`corrected_after`, with

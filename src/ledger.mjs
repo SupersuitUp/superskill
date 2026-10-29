@@ -5,7 +5,8 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const MISS_KINDS = new Set(["redirect", "correction", "rescue"]);
+// 0.9.0: a run that stopped to ask something the skill could have decided is not one-shot.
+const MISS_KINDS = new Set(["redirect", "correction", "rescue", "needless_question"]);
 
 /** Ledger files that may hold runs of this skill. */
 export function ledgerPaths(skillDir, skillName) {
