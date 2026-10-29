@@ -17,7 +17,8 @@
 //
 // A run is one real use: never a sandbox run (`doctor --run`), never a test. It is one-shot when
 // the person needed no correction, rescue or redirect, it did not fail or get abandoned, and it
-// was not corrected after it handed back. A taste note is the person's preference, not a defect,
+// was not corrected after it handed back. A needless question (one the skill could have decided)
+// breaks it too (0.9.0). A taste note is the person's preference, not a defect,
 // and does not break one-shot.
 //
 // Where the doctor reads it, first found wins:
@@ -35,7 +36,8 @@ export const UNKNOWN = "unknown";
 export const MIN_REAL_RUNS = 5;
 export const MIN_ONE_SHOT = 0.8;
 
-const MISS_KINDS = new Set(["redirect", "correction", "rescue"]);
+// 0.9.0: a run that stopped to ask something the skill could have decided is not one-shot.
+const MISS_KINDS = new Set(["redirect", "correction", "rescue", "needless_question"]);
 
 /** Is this a known model+harness pair? A record that could not say proves nothing about either. */
 export const knownPair = (p) => Boolean(p.model && p.harness && p.model !== UNKNOWN && p.harness !== UNKNOWN);

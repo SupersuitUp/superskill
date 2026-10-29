@@ -36,14 +36,16 @@ file error. `--json` prints one JSON document and nothing else.
 1. **skill**: a valid `SKILL.md` (name matches the folder, description of 1024 characters or
    fewer that says when to use it, hard rules above the compaction fold, headings in long bodies, nothing said twice), references one level deep, no
    hard-coded machine paths, nothing that reads like a prompt injection. It warns on dated
-   incident stories in `SKILL.md`, which belong in `MISSES.md`.
+   incident stories in `SKILL.md`, which belong in `MISSES.md`, and (0.9.0) on a skill that
+   spends a person's attention on what is not theirs to decide: an ask with no recommendation
+   beside it, or a menu about the skill's own running ("would you like me to continue").
 2. **tested**: at least three task evals with checks a machine can verify, and a trigger set of
    at least ten requests, some that should load the skill and some near-misses that should not.
 3. **superskill**: no open miss, and every fixed miss guarded by a regression eval; a recent
    `--run` against the `SKILL.md` that is there now, where the suite passes (90%), every
    regression eval passes every run, the trigger set is 90% right, and the skill beats the same
    task done without it; and a real-run record where one model+harness has at least 5 real runs
-   at 80% one-shot (no correction). Pairs are never pooled. "Recent" follows `metadata.cadence`
+   at 80% one-shot (no correction, and no question the skill could have decided). Pairs are never pooled. "Recent" follows `metadata.cadence`
    (a weekly skill's proof lasts 30 days). Goldens are optional evidence. Every threshold is a
    flag (`--min-real-runs`, `--min-one-shot`, `--min-pass-rate`, `--min-trigger-rate`).
 

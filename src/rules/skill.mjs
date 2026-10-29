@@ -88,6 +88,38 @@ const broken = (ctx) => Boolean(ctx.error || ctx.parseError);
 const str = (v) => (typeof v === "string" ? v : "");
 
 /** Markdown files that are instructions (not evidence) inside the skill. */
+// 0.9.0 attention rules. An instruction to ask the person, a recommendation beside it, a menu
+// about the skill's own running, and a line that forbids one (so "never ask 'would you like me
+// to continue'" is not counted as offering it).
+const ASK = /\bAskUserQuestion\b|\bask (the )?(user|person|operator|owner|human)\b|\bconfirm with\b|\bcheck with\b/i;
+const RECOMMENDS = /\brecommend|\bdefault\b/i;
+const SELF_MENU = /\b(would you like|do you want) me to (continue|proceed|keep going|go on)\b|\b(shall|should) I (continue|proceed|keep going)\b|\bwhat would you like (me )?to do next\b|\b(ask|asks|asking|offer|offers|choose|pick)\b[^.]{0,40}\bwhich mode\b|\bwhich mode\b[^.]{0,40}\?/i;
+const FORBIDS = /\b(never|don't|do not|not|no|avoid|instead of|banned)\b/i;
+
+/** SKILL.md (body only) and every markdown step file under steps/. */
+function attentionDocs(ctx) {
+  const docs = [{ path: "SKILL.md", text: ctx.body, offset: ctx.bodyStartLine - 1 }];
+  for (const p of ctx.files) {
+    if (/^steps\/.+\.mdx?$/i.test(p)) docs.push({ path: p, text: readText(ctx.dir, p) || "", offset: 0 });
+  }
+  return docs;
+}
+
+/** Prose paragraphs (split at blank lines, headings and fences), with their line numbers. */
+function paragraphs(text) {
+  const out = [];
+  let cur = [];
+  const flush = () => { if (cur.length) out.push({ lines: cur }); cur = []; };
+  let lineNo = 0;
+  for (const { line, fenced } of proseLines(text)) {
+    lineNo++;
+    if (fenced || !line.trim() || /^#{1,6}\s/.test(line)) { flush(); continue; }
+    cur.push({ text: line, lineNo });
+  }
+  flush();
+  return out;
+}
+
 function instructionDocs(ctx) {
   return ctx.files.filter((p) => /\.mdx?$/i.test(p) && !DATA_DIRS.test(p) && p !== "MISSES.md");
 }
@@ -308,6 +340,44 @@ export const skillRules = defineRules([
       return dups.length
         ? [f("warn", `${dups.length} paragraph(s) appear more than once (first: "${dups[0].slice(0, 70)}...")`, "Keep one copy and point to it; two copies drift apart the first time one is edited.")]
         : [];
+    },
+  },
+  // 0.9.0: a skill spends a person's attention only on what is theirs to decide. Both rules are
+  // static text scans and warnings, so wording alone never drops a working skill a level.
+  {
+    id: "asks-with-recommendation",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const out = [];
+      for (const doc of attentionDocs(ctx)) {
+        for (const para of paragraphs(doc.text)) {
+          const ask = para.lines.find((l) => !l.text.includes(IGNORE) && ASK.test(l.text));
+          if (!ask || RECOMMENDS.test(para.lines.map((l) => l.text).join(" "))) continue;
+          const line = ask.lineNo + doc.offset;
+          out.push(f("warn", `${doc.path}:${line} asks the person with no recommendation: "${ask.text.trim().slice(0, 80)}"`, "Lead the question with the answer the skill would pick, marked (Recommended) or named as the default, and say what the answer frees. If the skill can decide it, decide it instead of asking.", { file: doc.path, line }));
+        }
+      }
+      return out;
+    },
+  },
+  {
+    id: "no-self-menu",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const out = [];
+      for (const doc of attentionDocs(ctx)) {
+        let lineNo = 0;
+        for (const { line, fenced } of proseLines(doc.text)) {
+          lineNo++;
+          // A heading names a step; it offers nothing.
+          if (fenced || /^#{1,6}\s/.test(line) || line.includes(IGNORE) || !SELF_MENU.test(line) || FORBIDS.test(line)) continue;
+          const at = lineNo + doc.offset;
+          out.push(f("warn", `${doc.path}:${at} offers the person a menu about the skill's own running: "${line.trim().slice(0, 80)}"`, "Decide the next step and take it. Ask only what is the person's to decide (their judgment, another person's consent, an action that is hard to undo or leaves the machine).", { file: doc.path, line: at }));
+        }
+      }
+      return out;
     },
   },
   {

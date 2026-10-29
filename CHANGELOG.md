@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0 (2026-10-29)
+
+**A skill spends a person's attention only on what is theirs to decide.**
+
+- **A needless question breaks one-shot.** A run that stopped to ask something the skill could
+  have decided (a default its own rules or files already settle, a name that follows a pattern,
+  a choice with a conventional answer) is not one-shot, even when the person picked the option
+  offered. Writers record it as an intervention of kind `needless_question`; the real-run count
+  and `miss import` treat it like a correction. Whether a question was needless is the retro's
+  judgment, never inferred by the doctor. The retro's "When" now includes it.
+- **Two new level 1 rules, both warnings in 0.9.0, so they never drop a skill a level.**
+  `asks-with-recommendation` flags an instruction in `SKILL.md` or a step file to ask the person
+  (`AskUserQuestion`, "ask the user", "confirm with", "check with") whose paragraph names no
+  recommendation. `no-self-menu` flags an instruction that offers a choice about the skill's own
+  running ("would you like me to continue", "what would you like to do next", "which mode"); a
+  line that forbids the menu is not counted. Both skip code fences and `superskill-ignore` lines.
+
 ## 0.8.1 (2026-10-25)
 
 - **It is called the superskill essence**, and the spec now says why a well-made superskill makes
