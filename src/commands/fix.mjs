@@ -1,13 +1,13 @@
 import { parseArgs, UsageError } from "../args.mjs";
 import { skillDir, refuse } from "./common.mjs";
 import { readMisses, updateMiss } from "../misses.mjs";
-import { readEvals } from "../evals.mjs";
-import { readGoldens } from "../goldens.mjs";
+import { guardProblem } from "../guards.mjs";
 
 export const help = `superskill fix <skill> <miss-id> --eval <eval-id> [--commit <sha>]
 
-Close a miss. Refuses unless the named eval exists in evals/evals.json or goldens/, so
-every fix leaves behind a check that would catch the same miss again.
+Close a miss. Refuses unless the named eval exists in evals/evals.json or goldens/, or is
+test:<path>#<test name> naming a test file (found from the skill folder upward) that contains
+that name, so every fix leaves behind a check that would catch the same miss again.
 `;
 
 export async function run(argv) {
@@ -20,9 +20,8 @@ export async function run(argv) {
   if (!evalId || evalId === true) throw new UsageError("fix needs --eval <id>: the regression eval that would catch this miss again");
   const miss = (readMisses(dir) || []).find((m) => m.id === id);
   if (!miss) return refuse(`no miss ${id} in MISSES.md`);
-  const ids = new Set(readEvals(dir).cases.map((c) => String(c.id)));
-  for (const g of readGoldens(dir)) ids.add(g.id);
-  if (!ids.has(String(evalId))) return refuse(`eval "${evalId}" is not in evals/evals.json or goldens/. Add the case first, then fix.`);
+  const why = guardProblem(dir, String(evalId));
+  if (why) return refuse(`${why}. Add the case first, then fix.`);
   updateMiss(dir, id, { status: "fixed", eval: String(evalId), fix: a.flags.commit || miss.fix || "" });
   process.stdout.write(`${id} fixed, guarded by eval ${evalId}\n`);
   return 0;
