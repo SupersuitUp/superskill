@@ -122,7 +122,7 @@ ask, it asks once, leads with its recommendation, and says what the answer frees
 |---|---|---|
 | `misses-log-present` | fail | `MISSES.md` exists (it may have no entries) |
 | `misses-closed` | fail | no miss is open. A miss is a known way the skill fails; a skill that still fails a known way is not at the top level, however recent the miss |
-| `fixed-miss-has-eval` | fail | every fixed miss names an eval id present in `evals.json` or `goldens/` |
+| `fixed-miss-has-eval` | fail | every fixed miss names an eval id present in `evals.json` or `goldens/`, or `test:<path>#<test name>`: a test file found from the skill folder upward that contains that name |
 | `evals-pass` | fail | the last `--run` was against the current `SKILL.md` (`skill_sha` equals the sha256 of `SKILL.md`); its suite passed at least the minimum share of runs with the skill (default 90%); every fixed miss's regression eval passed every run; and it ran the trigger evals and got at least the minimum share right (default 90%) |
 | `run-evidence` | fail | `evals/results/latest.json` exists and `with_skill.pass_rate` > `without_skill.pass_rate` |
 | `run-fresh` | fail / warn | the last run is younger than the cadence window: `daily` or `weekly` 30 days, `monthly` 60, `quarterly` 120, `yearly` 365, none declared 30 (info). A `yearly` skill always warns to `--run` before its next real use. An unknown cadence warns |
@@ -275,7 +275,7 @@ guidance is to keep time-sensitive content out of instructions. So a story becom
 | What happened | the incident, in full: what the skill did, what it cost, what was noticed |
 | Should have | what the skill should have done |
 | Fix | the commit, or the rule now in `SKILL.md` that the incident earned |
-| Eval | the regression eval that would catch it again. Empty until one exists, and the doctor says so (`fixed-miss-has-eval`): a story with no eval is a fix nothing guards yet |
+| Eval | the regression eval that would catch it again: an id in `evals.json` or `goldens/`, or `test:<path>#<test name>` when the fix lives in code the skill's repo tests (the path relative to the skill folder or any folder above it, the name text the file contains). Empty until one exists, and the doctor says so (`fixed-miss-has-eval`): a story with no eval is a fix nothing guards yet |
 | Quote | optional: what the person said, verbatim |
 | Source | optional: where it was recorded (a ledger id, an issue) |
 
