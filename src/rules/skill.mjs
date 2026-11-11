@@ -15,6 +15,9 @@ const DATA_URI = /data:[a-z]+\/[a-z0-9+.-]+;base64,[A-Za-z0-9+/=]+/gi;
 
 const f = (severity, message, fix, extra = {}) => ({ severity, message, fix, ...extra });
 const FOLD_TOKENS = 5000;
+
+/** The kinds a `metadata.requires` token may name (0.10.0). Another kind warns; it never fails. */
+export const REQUIRES_KINDS = Object.freeze(["skill", "brand", "key", "tool", "narrator", "app", "python"]);
 // A hard rule is shouted (NEVER, ALWAYS, MUST) or bolded as a command (**Never ...**).
 const HARD_RULE = { test: (l) => /\b(NEVER|ALWAYS|MUST|DO NOT|DON'T|REFUSES?)\b/.test(l) || /\*\*(never|always|do not|don't|refuse)\b/i.test(l) };
 
@@ -239,6 +242,33 @@ export const skillRules = defineRules([
         return [f("fail", "metadata is not a map of string keys to string values", "Write metadata as indented `key: value` lines.")];
       const bad = Object.entries(m).filter(([, v]) => typeof v !== "string").map(([k]) => k);
       return bad.length ? [f("fail", `metadata values must be strings: ${bad.join(", ")}`, "Quote each metadata value.")] : [];
+    },
+  },
+  // A skill may say what it needs on the computer before it runs (0.10.0): one string,
+  // `metadata.requires: "tool:python3, app:Google Chrome, key:NAME?"`. The doctor checks the
+  // grammar only. Whether this computer has each need is the harness's check, at the skill's
+  // start, and that check never starts a program.
+  {
+    id: "metadata-requires",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const m = ctx.data.metadata;
+      if (!m || typeof m !== "object" || Array.isArray(m) || typeof m.requires !== "string") return [];
+      const out = [];
+      for (const raw of m.requires.split(",").map((t) => t.trim()).filter(Boolean)) {
+        const body = raw.endsWith("?") ? raw.slice(0, -1) : raw;
+        const t = /^([a-z][a-z0-9-]*):(\S(?:.*\S)?)$/.exec(body);
+        if (!t) {
+          out.push(f("fail", `metadata.requires token "${raw}" is not kind:value`,
+            `Write each need as kind:value, such as tool:ffmpeg or app:Google Chrome; end it with ? when the skill runs without it. The kinds are ${REQUIRES_KINDS.join(", ")}.`));
+          continue;
+        }
+        if (!REQUIRES_KINDS.includes(t[1]))
+          out.push(f("warn", `metadata.requires token "${raw}" has an unknown kind "${t[1]}"`,
+            `Use one of ${REQUIRES_KINDS.join(", ")}. A harness that does not know a kind cannot check it.`));
+      }
+      return out;
     },
   },
   // Length is never a defect on its own. A long skill that is well shaped costs tokens only

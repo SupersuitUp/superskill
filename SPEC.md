@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.9.0** (2026-10-29). The reference checker is `@supersuit/superskill`; where this
+**Version 0.10.0** (2026-11-11). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -92,6 +92,7 @@ ask, it asks once, leads with its recommendation, and says what the answer frees
 | `description-no-xml` | fail | no `<tag>` in `description`, placeholders like `<slug>` included (Anthropic's skill guidance forbids XML tags in the description) |
 | `compatibility-length` | fail | `compatibility`, if present, is at most 500 characters |
 | `metadata-string-map` | fail | `metadata`, if present, maps string keys to string values |
+| `metadata-requires` | fail, warn | `metadata.requires`, if present, is a comma-separated list of `kind:value` tokens, each optionally ending in `?`. A token that is not `kind:value` fails, named. A kind other than `skill`, `brand`, `key`, `tool`, `narrator`, `app` or `python` warns. |
 | `body-size` | info | reports lines and estimated tokens (characters / 4) once the body passes about 5000 tokens. Length alone is never a defect. |
 | `rules-above-the-fold` | warn | in a body past about 5000 tokens, every hard rule (a shouted NEVER, ALWAYS, MUST, DO NOT, REFUSE, or a bolded **Never ...** command, outside code fences) appears in the first 5000 tokens, either there or restated there. After compaction Claude Code keeps only that much of each invoked skill. |
 | `reference-says-when` | warn | every link from SKILL.md to a markdown file sits on a line that says when to read it (before, when, if, for, read ...). Step files (`steps/<step>.md`) are the recommended way to keep a long skill's detail out of the always-loaded body: they are read fresh when the step comes up, so compaction does not lose them. |
@@ -383,6 +384,22 @@ metadata:
   reads: friend, document
   writes: piece
 ```
+
+**What a skill needs to run (0.10.0).** A skill may say what it needs on the computer before it
+runs, as one comma-separated string in its metadata, beside `reads` and `writes`:
+
+```yaml
+metadata:
+  requires: "tool:python3, app:Google Chrome, key:ELEVENLABS_API_KEY?"
+```
+
+Each token is `kind:value`. A trailing `?` marks a need the skill can run without. The kinds are
+`tool` (a program on the PATH), `app` (a desktop app), `python` (a module Python can import),
+`key` (a named credential; a check reads that it is set, never its value), `skill` (another skill,
+`skill:<namespace>:<name>`), `brand` (`brand:universe`) and `narrator` (a local voice). There are
+no versions and no alternatives, and the platform goes in `compatibility`. The doctor checks the
+grammar only. Whether this computer has each need is the harness's check, made at the skill's
+start, and that check never starts a program: it looks at the disk.
 
 ## Collections and plugins
 
