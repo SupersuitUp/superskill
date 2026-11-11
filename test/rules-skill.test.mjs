@@ -97,6 +97,27 @@ test("metadata-string-map names a value that is itself a map", () => {
   assert.match(out[0].message, /extra/);
 });
 
+test("metadata-requires passes a well-formed line: spaces in a value, a namespaced skill and a trailing ? included", () => {
+  const md = fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  requires: "tool:python3, app:Google Chrome, key:ELEVENLABS_API_KEY?, skill:abu:make-a-work, python:PIL?, brand:universe, narrator:kokoro"`);
+  assert.deepEqual(check("metadata-requires", variant(md)), []);
+});
+
+test("metadata-requires fails each token that is not kind:value, and names it", () => {
+  const out = check("metadata-requires", variant(fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  requires: "tool:ffmpeg, ffmpeg, tool:"`)));
+  assert.deepEqual(out.map((x) => x.severity), ["fail", "fail"]);
+  assert.match(out[0].message, /"ffmpeg"/);
+  assert.match(out[1].message, /"tool:"/);
+  assert.match(out[0].fix, /kind:value/);
+});
+
+test("metadata-requires warns on an unknown kind and says nothing when there is no requires line", () => {
+  const out = check("metadata-requires", variant(fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  requires: "os:mac"`)));
+  assert.deepEqual(out.map((x) => x.severity), ["warn"]);
+  assert.match(out[0].message, /"os"/);
+  assert.deepEqual(check("metadata-requires", variant(fm(`name: valid-basic\n${GOOD_DESC}\nmetadata:\n  cadence: weekly`))), []);
+  assert.deepEqual(check("metadata-requires", variant(fm(`name: valid-basic\n${GOOD_DESC}`))), []);
+});
+
 test("length alone is never a failure: a 620-line skill still reaches the skill level", () => {
   const ctx = loadSkill(skill("huge-body"));
   const fails = runRules(ctx, skillRules, { now: NOW }).filter((f) => f.severity === "fail");

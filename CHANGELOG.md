@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.10.0 (2026-11-11)
+
+**A skill can say what it needs to run.**
+
+- **`metadata.requires`.** One comma-separated string of `kind:value` tokens, beside `reads` and
+  `writes`: `tool`, `app`, `python`, `key`, `skill`, `brand`, `narrator`, with a trailing `?` for a
+  need the skill can run without. A harness checks it at the skill's start, by looking at the
+  disk, and offers the fix for each missing need.
+- **A new level 1 rule, `metadata-requires`.** A token that is not `kind:value` fails, named; an
+  unknown kind warns, so a new kind never drops a skill a level.
+- **A fixed miss can be guarded by a test in the skill's repo** (shipped on main after 0.9.0,
+  first released here): `Eval: test:<path>#<test name>` passes when that file holds that test.
+
 ## 0.9.0 (2026-10-29)
 
 **A skill spends a person's attention only on what is theirs to decide.**
