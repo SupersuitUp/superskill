@@ -15,7 +15,8 @@ export function ledgerPaths(skillDir, skillName) {
   if (existsSync(local)) out.push(local);
   // FREEDOM_SKILL_LEDGER_HOME is where Freedom itself writes when it is re-pointed (tests, a
   // second profile); read the same place it writes.
-  const home = process.env.FREEDOM_SKILL_LEDGER_HOME || join(homedir(), ".freedom", "ledger");
+  // FREEDOM_HOME re-points the whole home (a test runner's sandbox); read under it like Freedom writes.
+  const home = process.env.FREEDOM_SKILL_LEDGER_HOME || join(process.env.FREEDOM_HOME || homedir(), ".freedom", "ledger");
   const root = join(home, "skills");
   if (existsSync(root) && skillName) {
     for (const plugin of readdirSync(root).sort()) {

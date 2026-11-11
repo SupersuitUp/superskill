@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1 (2026-11-11)
+
+- **The ledger is read under `FREEDOM_HOME` when it is set**, the same home Freedom writes it to,
+  so a sandboxed run never reads the operator's real `~/.freedom/ledger`.
+
 ## 0.10.0 (2026-11-11)
 
 **A skill can say what it needs to run.**
