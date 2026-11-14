@@ -186,7 +186,9 @@ export const skillRules = defineRules([
       if (broken(ctx)) return [];
       const name = str(ctx.data.name).toLowerCase();
       const hit = ["anthropic", "claude"].find((w) => name.includes(w));
-      return hit ? [f("fail", `name contains the reserved word "${hit}"`, "Pick a name without \"anthropic\" or \"claude\".")] : [];
+      // A warning, not a failure: Claude Code and Codex load the skill. Only a skill uploaded to
+      // claude.ai or the Claude API is refused for this name.
+      return hit ? [f("warn", `name contains "${hit}": Claude Code and Codex load it, but claude.ai and the Claude API refuse to upload a skill with that word in its name`, "Keep it if the skill only runs in a coding harness; pick a name without \"anthropic\" or \"claude\" if it must upload to claude.ai.")] : [];
     },
   },
   {

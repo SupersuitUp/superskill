@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.2 (2026-11-14)
+
+- **`name-reserved-words` is a warning, not a failure.** Claude Code and Codex load a skill whose
+  name holds `claude` or `anthropic` (Anthropic's own plugins ship `claude-md-improver`); only an
+  upload to claude.ai or the Claude API refuses it. The warning says so, and the skill keeps its level.
+
 ## 0.10.1 (2026-11-11)
 
 - **The ledger is read under `FREEDOM_HOME` when it is set**, the same home Freedom writes it to,

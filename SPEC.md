@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.10.1** (2026-11-11). The reference checker is `@supersuit/superskill`; where this
+**Version 0.10.2** (2026-11-14). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -86,7 +86,7 @@ ask, it asks once, leads with its recommendation, and says what the answer frees
 | `frontmatter-valid` | fail | `SKILL.md` exists and opens with a `---` fenced YAML block |
 | `name-format` | fail | `name` is 1-64 chars, `^[a-z0-9]+(-[a-z0-9]+)*$` (so no `--`) |
 | `name-matches-folder` | fail | `name` equals the folder name |
-| `name-reserved-words` | fail | `name` contains neither `anthropic` nor `claude` |
+| `name-reserved-words` | warn | `name` contains neither `anthropic` nor `claude`. Claude Code and Codex load such a skill; claude.ai and the Claude API refuse to upload one, so it warns rather than fails |
 | `description-length` | fail | `description` is 1-1024 characters |
 | `description-has-trigger` | warn | `description` says when to use it (`when`, `trigger`, `for requests`), or `when_to_use` is set |
 | `description-no-xml` | fail | no `<tag>` in `description`, placeholders like `<slug>` included (Anthropic's skill guidance forbids XML tags in the description) |

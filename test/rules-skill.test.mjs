@@ -61,9 +61,16 @@ test("name-matches-folder fails on mismatch", () => {
   assert.deepEqual(sev("name-matches-folder", skill("mismatch")), ["fail"]);
 });
 
-test("name-reserved-words fails on claude or anthropic", () => {
-  assert.deepEqual(sev("name-reserved-words", variant(fm(`name: claude-helper\n${GOOD_DESC}`))), ["fail"]);
-  assert.deepEqual(sev("name-reserved-words", variant(fm(`name: my-anthropic-tool\n${GOOD_DESC}`))), ["fail"]);
+test("name-reserved-words warns on claude or anthropic, and never blocks a level", () => {
+  // Claude Code and Codex load such a skill (Anthropic's own plugins ship claude-md-improver);
+  // only a skill uploaded to claude.ai or the Claude API is refused. So it is a warning that
+  // says where it breaks, never a failure that drops a working skill a level.
+  for (const name of ["claude-helper", "my-anthropic-tool", "switch-claude-account"]) {
+    const found = check("name-reserved-words", variant(fm(`name: ${name}\n${GOOD_DESC}`)));
+    assert.deepEqual(found.map((x) => x.severity), ["warn"], name);
+    assert.match(found[0].message, /claude\.ai|Claude API/);
+  }
+  assert.deepEqual(sev("name-reserved-words", variant(fm(`name: switch-ai-account\n${GOOD_DESC}`))), []);
 });
 
 test("description-length fails over 1024 and when missing", () => {
