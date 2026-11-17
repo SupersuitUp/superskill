@@ -4,9 +4,14 @@
 
 **A skill names what it reads before it acts and what it writes back, and its body does both.**
 
-- **`metadata.reads` and `metadata.writes` take entries.** Each entry names `root` (`operator`
-  or `company`), `file`, and `facts`, a non-empty list of the exact facts the skill needs from
-  that file. The 0.8 kinds string is still read and not checked.
+- **`metadata.reads` and `metadata.writes` are renamed `metadata.reads_before_acting` and
+  `metadata.writes_back`.** The names say when and why: read before acting, so no run has amnesia
+  about the person it serves; write back, so the work compounds. The old names are deprecated
+  aliases for this one version: the checker reads either, prefers the new name, and warns on the
+  old one (and warns that the old one is ignored when both are set). The next version drops them.
+- **Both take entries.** Each entry names `root` (`operator` or `company`), `file`, and `facts`, a
+  non-empty list of the exact facts the skill needs from that file. The 0.8 kinds string is still
+  read and not checked against the body.
 - **A new level 1 rule, `metadata-reads-writes`.** An entry with no root, a root other than
   `operator` or `company`, no file, or no facts fails; so does a fact that only restates the file.
   The body must carry a "What this skill reads first" step naming every read file and a "What
@@ -14,7 +19,8 @@
   frontmatter before the model reads the skill. Each failure names what is missing. A body step
   with no matching metadata warns. A step counts only when its title starts a heading, a list item
   or a bold lead-in, so a skill that mentions the titles in prose is not read as having the steps.
-- **`metadata-string-map` accepts a list** for `reads` and `writes`; every other value stays a string.
+- **`metadata-string-map` accepts a list** for `reads_before_acting` and `writes_back` (and the
+  old names); every other value stays a string.
 
 ## 0.10.2 (2026-11-14)
 
