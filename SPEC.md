@@ -91,8 +91,8 @@ ask, it asks once, leads with its recommendation, and says what the answer frees
 | `description-has-trigger` | warn | `description` says when to use it (`when`, `trigger`, `for requests`), or `when_to_use` is set |
 | `description-no-xml` | fail | no `<tag>` in `description`, placeholders like `<slug>` included (Anthropic's skill guidance forbids XML tags in the description) |
 | `compatibility-length` | fail | `compatibility`, if present, is at most 500 characters |
-| `metadata-string-map` | fail | `metadata`, if present, maps string keys to string values. `reads` and `writes` may instead be a list of entries (0.11.0) |
-| `metadata-reads-writes` | fail, warn | when `metadata.reads` or `metadata.writes` is a list of entries: each entry has `root` (`operator` or `company`), `file`, and `facts`, a non-empty list of named facts. A fact that only restates the file (its path, its name, "the whole file", "everything in it") fails, named. The body has a step or heading "What this skill reads first" naming every `reads` file, and "What this skill writes back" naming every `writes` file (the title starts a heading, a list item or a bold lead-in; a mention in a sentence is not a step); a missing step or an unnamed file fails, with a sentence naming what is missing. A body step that no metadata declares warns. The 0.8 kinds string (`reads: friend, document`) and a skill declaring neither are not checked. |
+| `metadata-string-map` | fail | `metadata`, if present, maps string keys to string values. `reads_before_acting` and `writes_back` (and their deprecated aliases `reads` and `writes`) may instead be a list of entries (0.11.0) |
+| `metadata-reads-writes` | fail, warn | when `metadata.reads_before_acting` or `metadata.writes_back` is a list of entries: each entry has `root` (`operator` or `company`), `file`, and `facts`, a non-empty list of named facts. A fact that only restates the file (its path, its name, "the whole file", "everything in it") fails, named. The body has a step or heading "What this skill reads first" naming every `reads_before_acting` file, and "What this skill writes back" naming every `writes_back` file (the title starts a heading, a list item or a bold lead-in; a mention in a sentence is not a step); a missing step or an unnamed file fails, with a sentence naming what is missing. A body step that no metadata declares warns. The old names `reads` and `writes` are read when the new name is absent, and warn as deprecated; when both are set the new name wins and the old one warns as ignored. The 0.8 kinds string and a skill declaring neither are not checked against the body. |
 | `metadata-requires` | fail, warn | `metadata.requires`, if present, is a comma-separated list of `kind:value` tokens, each optionally ending in `?`. A token that is not `kind:value` fails, named. A kind other than `skill`, `brand`, `key`, `tool`, `narrator`, `app` or `python` warns. |
 | `body-size` | info | reports lines and estimated tokens (characters / 4) once the body passes about 5000 tokens. Length alone is never a defect. |
 | `rules-above-the-fold` | warn | in a body past about 5000 tokens, every hard rule (a shouted NEVER, ALWAYS, MUST, DO NOT, REFUSE, or a bolded **Never ...** command, outside code fences) appears in the first 5000 tokens, either there or restated there. After compaction Claude Code keeps only that much of each invoked skill. |
@@ -369,30 +369,31 @@ It is optional, it sits beside `SKILL.md`, and it has five parts, each a `##` he
 | `## The rebuild interview` | the questions that fill every slot, and what to read in the reader's own files first so nothing they already wrote down is asked |
 | `## Where it came from` | the author, how many real runs it has, and the corrections that shaped it, counted rather than narrated |
 
-**A well-made superskill makes its essence easy to extract.** Most of it is already in the folder: the rules in `SKILL.md` are the rigor, `metadata.reads` and `metadata.writes` name the slots the interview has to fill, and `MISSES.md` with the real-run record is where it came from, counted. Writing the essence is mostly lifting those out and removing what is personal; a skill whose essence cannot be lifted out that way is one whose rules and its author's life are still tangled together.
+**A well-made superskill makes its essence easy to extract.** Most of it is already in the folder: the rules in `SKILL.md` are the rigor, `metadata.reads_before_acting` and `metadata.writes_back` name the slots the interview has to fill, and `MISSES.md` with the real-run record is where it came from, counted. Writing the essence is mostly lifting those out and removing what is personal; a skill whose essence cannot be lifted out that way is one whose rules and its author's life are still tangled together.
 
 The rebuild ends in a skill of the reader's own, written to this standard, whose `MISSES.md`
 starts empty: the author's misses are already absorbed into the rigor. An essence names no
 private person and carries no secret; the hygiene rules that bind `SKILL.md` (no absolute paths,
 no injection) bind it too, because it is a bundled text file.
 
-**What a skill reads and writes.** A skill may declare what it reads before it acts and what it
-writes back after, so no run starts with amnesia about the person it serves and each run leaves
-the next one better informed. Since 0.11.0 each is a list of entries. Each entry names its
-`root` (`operator`, the person's own workspace, or `company`, a company's workspace), its
+**What a skill reads before acting and writes back.** A skill may declare what it reads before it
+acts and what it writes back after. The names say when and why: `reads_before_acting`, so no run
+starts with amnesia about the person it serves; `writes_back`, so each run leaves the next one
+better informed and the work compounds. Since 0.11.0 each is a list of entries. Each entry names
+its `root` (`operator`, the person's own workspace, or `company`, a company's workspace), its
 `file` relative to that root, and its `facts`: each fact the skill needs from that file, named,
 never "the file". An optional `kind` names the
 [hypercontext standard](https://hypercontext.wiki/standards) kind of the record:
 
 ```yaml
 metadata:
-  reads:
+  reads_before_acting:
     - root: operator
       file: self/expenses.md
       facts:
         - which card is whose, by last four digits
         - vendors the operator ruled are never company spending
-  writes:
+  writes_back:
     - root: operator
       file: self/expenses.md
       facts:
@@ -401,18 +402,21 @@ metadata:
 
 **The body carries the steps, because the model never sees the frontmatter.** A harness strips
 the frontmatter before the model reads a skill, so a declaration alone makes nothing happen. A
-skill with `metadata.reads` has a step or heading titled "What this skill reads first" that names
-every file it declares, and a skill with `metadata.writes` has one titled "What this skill writes
-back" that names every file it declares. `metadata-reads-writes` refuses a skill whose steps and
-metadata disagree. An answer the person gives to a question the skill asked, that still holds next
-time, is always one of the writes.
+skill with `metadata.reads_before_acting` has a step or heading titled "What this skill reads
+first" that names every file it declares, and a skill with `metadata.writes_back` has one titled
+"What this skill writes back" that names every file it declares. `metadata-reads-writes` refuses a
+skill whose steps and metadata disagree. An answer the person gives to a question the skill asked,
+that still holds next time, is always one of the writes.
 
-The kinds string from 0.8.0 (`reads: friend, document`, `writes: piece`) is still read, so an
-essence's rebuild interview knows which of the reader's files to read first; it names no file,
-so nothing checks it against the body.
+**The old names, `reads` and `writes`, are deprecated aliases for one version.** 0.8.0 named
+these fields `reads` and `writes`. 0.11.0 still reads them when the new name is absent, checks
+them the same way, and warns; when both are set it reads the new name and warns that the old one
+is ignored. The next version drops the aliases. The kinds string from 0.8.0
+(`reads_before_acting: friend, document`) is still read, so an essence's rebuild interview knows
+which of the reader's files to read first; it names no file, so nothing checks it against the body.
 
 **What a skill needs to run (0.10.0).** A skill may say what it needs on the computer before it
-runs, as one comma-separated string in its metadata, beside `reads` and `writes`:
+runs, as one comma-separated string in its metadata, beside `reads_before_acting` and `writes_back`:
 
 ```yaml
 metadata:

@@ -14,10 +14,16 @@ const IGNORE = "superskill-ignore";
 const DATA_URI = /data:[a-z]+\/[a-z0-9+.-]+;base64,[A-Za-z0-9+/=]+/gi;
 
 const f = (severity, message, fix, extra = {}) => ({ severity, message, fix, ...extra });
-/** The two metadata keys that may hold entries (0.11.0), the roots an entry names, and the body step each needs. */
-export const IO_KEYS = Object.freeze(["reads", "writes"]);
+/**
+ * The two metadata keys that may hold entries (0.11.0), the roots an entry names, and the body step
+ * each needs. The names say when and why: read before acting, so no run has amnesia about the person;
+ * write back, so the work compounds. `reads` and `writes` (0.8.0) are deprecated aliases for one
+ * version: read when the new name is absent, and warned.
+ */
+export const IO_KEYS = Object.freeze(["reads_before_acting", "writes_back"]);
+export const IO_ALIASES = Object.freeze({ reads_before_acting: "reads", writes_back: "writes" });
 export const IO_ROOTS = Object.freeze(["operator", "company"]);
-export const IO_STEPS = Object.freeze({ reads: "What this skill reads first", writes: "What this skill writes back" });
+export const IO_STEPS = Object.freeze({ reads_before_acting: "What this skill reads first", writes_back: "What this skill writes back" });
 const IO_FIX = "Write each entry as `- root: operator` (or company), `file: <path>`, and `facts:` with one named fact per line.";
 
 /**
@@ -288,7 +294,7 @@ export const skillRules = defineRules([
         return [f("fail", "metadata is not a map of string keys to string values", "Write metadata as indented `key: value` lines.")];
       // 0.11.0: `reads` and `writes` may be a list of entries (root, file, facts), which
       // metadata-reads-writes checks; every other value stays a string.
-      const bad = Object.entries(m).filter(([k, v]) => typeof v !== "string" && !(IO_KEYS.includes(k) && Array.isArray(v))).map(([k]) => k);
+      const bad = Object.entries(m).filter(([k, v]) => typeof v !== "string" && !([...IO_KEYS, ...Object.values(IO_ALIASES)].includes(k) && Array.isArray(v))).map(([k]) => k);
       return bad.length ? [f("fail", `metadata values must be strings: ${bad.join(", ")}`, "Quote each metadata value.")] : [];
     },
   },
@@ -308,7 +314,17 @@ export const skillRules = defineRules([
       for (const key of IO_KEYS) {
         const step = IO_STEPS[key];
         const sec = stepSection(ctx.body, step);
-        const v = meta[key];
+        const alias = IO_ALIASES[key];
+        let v = meta[key];
+        if (alias in meta) {
+          if (v !== undefined)
+            out.push(f("warn", `metadata.${alias} is ignored: metadata.${key} is set`, `Remove metadata.${alias}.`));
+          else {
+            v = meta[alias];
+            out.push(f("warn", `metadata.${alias} is the old name: write metadata.${key}`,
+              `Rename metadata.${alias} to metadata.${key}. The old name is read until the next version of the standard.`));
+          }
+        }
         if (!Array.isArray(v)) {
           if (sec !== null && typeof v !== "string")
             out.push(f("warn", `the body has a "${step}" step, but metadata.${key} declares nothing`,
@@ -339,7 +355,7 @@ export const skillRules = defineRules([
         if (!files.length) continue;
         if (sec === null) {
           out.push(f("fail", `metadata.${key} declares ${files.join(", ")}, but the body has no "${step}" step`,
-            `Add a heading or step titled "${step}" that names ${files.join(", ")}. The model reads only the body, so without it nothing is ${key === "reads" ? "read" : "written"}.`));
+            `Add a heading or step titled "${step}" that names ${files.join(", ")}. The model reads only the body, so without it nothing is ${key === "reads_before_acting" ? "read" : "written"}.`));
           continue;
         }
         for (const file of files) if (!sec.includes(file))
