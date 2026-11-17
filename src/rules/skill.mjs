@@ -14,6 +14,47 @@ const IGNORE = "superskill-ignore";
 const DATA_URI = /data:[a-z]+\/[a-z0-9+.-]+;base64,[A-Za-z0-9+/=]+/gi;
 
 const f = (severity, message, fix, extra = {}) => ({ severity, message, fix, ...extra });
+/** The two metadata keys that may hold entries (0.11.0), the roots an entry names, and the body step each needs. */
+export const IO_KEYS = Object.freeze(["reads", "writes"]);
+export const IO_ROOTS = Object.freeze(["operator", "company"]);
+export const IO_STEPS = Object.freeze({ reads: "What this skill reads first", writes: "What this skill writes back" });
+const IO_FIX = "Write each entry as `- root: operator` (or company), `file: <path>`, and `facts:` with one named fact per line.";
+
+/**
+ * The text of the body step titled `title`, or null. A heading runs to the next heading of its
+ * level or higher; a step line (a list item or bold lead-in) runs to the next heading. Fenced
+ * code is skipped when finding the title.
+ */
+export function stepSection(body, title) {
+  const lines = String(body || "").split("\n");
+  const want = title.toLowerCase();
+  let fenced = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*(```|~~~)/.test(lines[i])) { fenced = !fenced; continue; }
+    if (fenced || !lines[i].toLowerCase().includes(want)) continue;
+    const h = /^(#{1,6})\s/.exec(lines[i]);
+    let j = i + 1, inner = false;
+    for (; j < lines.length; j++) {
+      if (/^\s*(```|~~~)/.test(lines[j])) inner = !inner;
+      if (inner) continue;
+      const hj = /^(#{1,6})\s/.exec(lines[j]);
+      if (hj && (!h || hj[1].length <= h[1].length)) break;
+    }
+    return lines.slice(i, j).join("\n");
+  }
+  return null;
+}
+
+/** Does a named fact only restate its file ("expenses.md", "the whole file", "everything in it")? */
+export function restatesFile(fact, file) {
+  const norm = (s) => s.toLowerCase().replace(/[`'"*_.,:;()]/g, " ").replace(/\s+/g, " ").trim();
+  const base = file.split("/").pop();
+  const stem = base.replace(/\.[^.]+$/, "");
+  const fillers = /\b(the|a|an|whole|entire|full|all|of|everything|anything|in|it|its|contents?|file|this|that|data|info|information)\b/g;
+  const left = norm(fact).replace(norm(file), " ").replace(norm(base), " ").replace(norm(stem), " ").replace(fillers, " ").replace(/[\/\-]/g, " ").trim();
+  return left === "";
+}
+
 const FOLD_TOKENS = 5000;
 
 /** The kinds a `metadata.requires` token may name (0.10.0). Another kind warns; it never fails. */
@@ -242,8 +283,67 @@ export const skillRules = defineRules([
       if (m === "") return [];
       if (typeof m !== "object" || Array.isArray(m) || m === null)
         return [f("fail", "metadata is not a map of string keys to string values", "Write metadata as indented `key: value` lines.")];
-      const bad = Object.entries(m).filter(([, v]) => typeof v !== "string").map(([k]) => k);
+      // 0.11.0: `reads` and `writes` may be a list of entries (root, file, facts), which
+      // metadata-reads-writes checks; every other value stays a string.
+      const bad = Object.entries(m).filter(([k, v]) => typeof v !== "string" && !(IO_KEYS.includes(k) && Array.isArray(v))).map(([k]) => k);
       return bad.length ? [f("fail", `metadata values must be strings: ${bad.join(", ")}`, "Quote each metadata value.")] : [];
+    },
+  },
+  // What a skill reads and writes (0.11.0). The model never sees a skill's frontmatter, so a
+  // declaration there makes nothing happen on its own: the body must carry a step that does the
+  // reading and one that does the writing, naming the same files. Each entry names its root
+  // (the operator's own workspace or the company's) and the exact facts it holds, because "the
+  // file" tells the next run nothing about what to look for. The 0.8 kinds string is left alone.
+  {
+    id: "metadata-reads-writes",
+    level: "skill",
+    check(ctx) {
+      if (broken(ctx)) return [];
+      const m = ctx.data.metadata;
+      const meta = m && typeof m === "object" && !Array.isArray(m) ? m : {};
+      const out = [];
+      for (const key of IO_KEYS) {
+        const step = IO_STEPS[key];
+        const sec = stepSection(ctx.body, step);
+        const v = meta[key];
+        if (!Array.isArray(v)) {
+          if (sec !== null && typeof v !== "string")
+            out.push(f("warn", `the body has a "${step}" step, but metadata.${key} declares nothing`,
+              `Declare each file that step names under metadata.${key}, with its root and facts, so the doctor can check the two agree.`));
+          continue;
+        }
+        const files = [];
+        v.forEach((e, i) => {
+          const n = i + 1;
+          if (!e || typeof e !== "object" || Array.isArray(e)) {
+            out.push(f("fail", `metadata.${key} entry ${n} is not a map with root, file and facts`, IO_FIX));
+            return;
+          }
+          const file = typeof e.file === "string" ? e.file.trim() : "";
+          const label = file ? ` (${file})` : "";
+          if (!file) out.push(f("fail", `metadata.${key} entry ${n} has no file`, IO_FIX));
+          else files.push(file);
+          if (e.root === undefined || e.root === "")
+            out.push(f("fail", `metadata.${key} entry ${n}${label} has no root: say operator or company`, IO_FIX));
+          else if (!IO_ROOTS.includes(e.root))
+            out.push(f("fail", `metadata.${key} entry ${n}${label} has root "${e.root}": it must be operator or company`, IO_FIX));
+          const facts = Array.isArray(e.facts) ? e.facts.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean) : [];
+          if (!facts.length)
+            out.push(f("fail", `metadata.${key} entry ${n}${label} names no facts`, "List each fact the file holds that this skill needs, one per line, such as \"which card is whose, by last four digits\"."));
+          else if (file) for (const x of facts.filter((x) => restatesFile(x, file)))
+            out.push(f("fail", `metadata.${key} entry ${n}${label}: the fact "${x}" only restates the file`, "Name the facts inside the file this skill needs, never the file itself or \"everything in it\"."));
+        });
+        if (!files.length) continue;
+        if (sec === null) {
+          out.push(f("fail", `metadata.${key} declares ${files.join(", ")}, but the body has no "${step}" step`,
+            `Add a heading or step titled "${step}" that names ${files.join(", ")}. The model reads only the body, so without it nothing is ${key === "reads" ? "read" : "written"}.`));
+          continue;
+        }
+        for (const file of files) if (!sec.includes(file))
+          out.push(f("fail", `the "${step}" step does not name ${file}, which metadata.${key} declares`,
+            `Name ${file} in the "${step}" step, or remove it from metadata.${key}.`));
+      }
+      return out;
     },
   },
   // A skill may say what it needs on the computer before it runs (0.10.0): one string,
