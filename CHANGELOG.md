@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.0 (2026-11-17)
+
+**A skill names what it reads before it acts and what it writes back, and its body does both.**
+
+- **`metadata.reads` and `metadata.writes` take entries.** Each entry names `root` (`operator`
+  or `company`), `file`, and `facts`, a non-empty list of the exact facts the skill needs from
+  that file. The 0.8 kinds string is still read and not checked.
+- **A new level 1 rule, `metadata-reads-writes`.** An entry with no root, a root other than
+  `operator` or `company`, no file, or no facts fails; so does a fact that only restates the file.
+  The body must carry a "What this skill reads first" step naming every read file and a "What
+  this skill writes back" step naming every written file, because a harness strips the
+  frontmatter before the model reads the skill. Each failure names what is missing. A body step
+  with no matching metadata warns.
+- **`metadata-string-map` accepts a list** for `reads` and `writes`; every other value stays a string.
+
 ## 0.10.2 (2026-11-14)
 
 - **`name-reserved-words` is a warning, not a failure.** Claude Code and Codex load a skill whose
