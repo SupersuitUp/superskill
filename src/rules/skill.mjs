@@ -21,9 +21,9 @@ export const IO_STEPS = Object.freeze({ reads: "What this skill reads first", wr
 const IO_FIX = "Write each entry as `- root: operator` (or company), `file: <path>`, and `facts:` with one named fact per line.";
 
 /**
- * The text of the body step titled `title`, or null. A heading runs to the next heading of its
- * level or higher; a step line (a list item or bold lead-in) runs to the next heading. Fenced
- * code is skipped when finding the title.
+ * The text of the body step titled `title`, or null. The title must start a heading, a list item
+ * or a bold lead-in; a mention inside a sentence is not a step. A heading runs to the next heading
+ * of its level or higher; any other step runs to the next heading. Fenced code is skipped.
  */
 export function stepSection(body, title) {
   const lines = String(body || "").split("\n");
@@ -31,7 +31,10 @@ export function stepSection(body, title) {
   let fenced = false;
   for (let i = 0; i < lines.length; i++) {
     if (/^\s*(```|~~~)/.test(lines[i])) { fenced = !fenced; continue; }
-    if (fenced || !lines[i].toLowerCase().includes(want)) continue;
+    if (fenced) continue;
+    // Only a heading or a list step that STARTS with the title counts; a mention in prose does not.
+    const lead = lines[i].replace(/^\s*(#{1,6}\s+|(\d+[.)]|[-*+])\s+)?(\*\*|__)?/, "").toLowerCase();
+    if (!lead.startsWith(want)) continue;
     const h = /^(#{1,6})\s/.exec(lines[i]);
     let j = i + 1, inner = false;
     for (; j < lines.length; j++) {

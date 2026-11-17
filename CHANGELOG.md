@@ -12,7 +12,8 @@
   The body must carry a "What this skill reads first" step naming every read file and a "What
   this skill writes back" step naming every written file, because a harness strips the
   frontmatter before the model reads the skill. Each failure names what is missing. A body step
-  with no matching metadata warns.
+  with no matching metadata warns. A step counts only when its title starts a heading, a list item
+  or a bold lead-in, so a skill that mentions the titles in prose is not read as having the steps.
 - **`metadata-string-map` accepts a list** for `reads` and `writes`; every other value stays a string.
 
 ## 0.10.2 (2026-11-14)
