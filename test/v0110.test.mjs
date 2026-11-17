@@ -110,3 +110,10 @@ test("metadata-reads-writes warns on a body step no metadata declares", () => {
   assert.ok(out.every((f) => f.severity === "warn"));
   assert.match(out[0].message, /metadata\.reads/);
 });
+
+test("metadata-reads-writes counts only a heading or a step that starts with the title, never a mention in prose", () => {
+  const prose = "# Making skills\n\nThe body opens with a step titled \"What this skill reads first\".\n";
+  assert.deepEqual(check("metadata-reads-writes", variant("metadata:\n  cadence: weekly", prose)), []);
+  const step = "# Expenses\n\n1. **What this skill reads first.** Read `self/expenses.md`.\n\n## Steps\n\n- File it.\n\n- What this skill writes back: `finance/tallies/owner.csv`.\n";
+  assert.deepEqual(check("metadata-reads-writes", variant(META, step)), []);
+});
