@@ -144,7 +144,9 @@ const str = (v) => (typeof v === "string" ? v : "");
 // 0.9.0 attention rules. An instruction to ask the person, a recommendation beside it, a menu
 // about the skill's own running, and a line that forbids one (so "never ask 'would you like me
 // to continue'" is not counted as offering it).
-const ASK = /\bAskUserQuestion\b|\bask (the )?(user|person|operator|owner|human)\b|\bconfirm with\b|\bcheck with\b/i;
+// "Confirm with" / "check with" is an ask only when a person follows: "confirm with browser
+// snippet 5" is a verification step, not a question (supersuit-dev#3817).
+const ASK = /\bAskUserQuestion\b|\bask (the )?(user|person|operator|owner|human)\b|\b(confirm|check) with (the |your |a |an )?(users?|persons?|people|operators?|owners?|humans?|them)\b/i;
 const RECOMMENDS = /\brecommend|\bdefault\b/i;
 const SELF_MENU = /\b(would you like|do you want) me to (continue|proceed|keep going|go on)\b|\b(shall|should) I (continue|proceed|keep going)\b|\bwhat would you like (me )?to do next\b|\b(ask|asks|asking|offer|offers|choose|pick)\b[^.]{0,40}\bwhich mode\b|\bwhich mode\b[^.]{0,40}\?/i;
 const FORBIDS = /\b(never|don't|do not|not|no|avoid|instead of|banned)\b/i;

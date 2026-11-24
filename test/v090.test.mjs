@@ -66,6 +66,17 @@ test("asks-with-recommendation is quiet when the paragraph names a recommendatio
   assert.deepEqual(sev("asks-with-recommendation", variant("# S\n\nConfirm with the owner before sending; the default is to hold.\n")), []);
 });
 
+test("GUARD: confirm with / check with counts as an ask only when a person follows (#3817)", () => {
+  // Not a person: a snippet, a file, a test. These are instructions to verify, not questions.
+  assert.deepEqual(sev("asks-with-recommendation", variant("# S\n\nConfirm with browser snippet 5.\n")), []);
+  assert.deepEqual(sev("asks-with-recommendation", variant("# S\n\nCheck with `git status` that the tree is clean.\n")), []);
+  // A person: still an ask with no recommendation.
+  for (const who of ["the user", "the operator", "them", "the owner", "a human", "your person"]) {
+    assert.deepEqual(sev("asks-with-recommendation", variant(`# S\n\nConfirm with ${who} which folder to write into.\n`)), ["warn"], who);
+  }
+  assert.deepEqual(sev("asks-with-recommendation", variant("# S\n\nCheck with the person which template to use.\n")), ["warn"]);
+});
+
 test("asks-with-recommendation ignores code fences and superskill-ignore lines", () => {
   assert.deepEqual(sev("asks-with-recommendation", variant("# S\n\n```\nAsk the user which folder.\n```\n")), []);
   assert.deepEqual(sev("asks-with-recommendation", variant("# S\n\nAsk the user which folder. <!-- superskill-ignore -->\n")), []);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1 (2026-11-24)
+
+- **`asks-with-recommendation` reads "confirm with" and "check with" as an ask only when a person
+  follows** (the user, the person, the operator, the owner, a human, them). "Confirm with browser
+  snippet 5" is a step that verifies something, not a question to a person, and no longer warns.
+  "Check with the person which template to use" still does.
+
 ## 0.11.0 (2026-11-17)
 
 **A skill names what it reads before it acts and what it writes back, and its body does both.**

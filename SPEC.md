@@ -1,6 +1,6 @@
 # The superskill standard
 
-**Version 0.11.0** (2026-11-17). The reference checker is `@supersuit/superskill`; where this
+**Version 0.11.1** (2026-11-24). The reference checker is `@supersuit/superskill`; where this
 document and the checker disagree, the checker has a bug.
 
 A **superskill** runs on frontier intelligence, is fixed every time it gets something wrong, and
@@ -100,7 +100,7 @@ ask, it asks once, leads with its recommendation, and says what the answer frees
 | `history-in-skill` | warn | no dated incident story in the body outside code: "Earned 2026-09-08", "(Gary, 2026-09-16: ...)", "Wilson, 2026-09-05: \*"..."\*", "on 2026-09-13 a session ...", "until 2026-09-21 the flag ...", "measured 2026-09-20", "(2026-09-30, #324)", "- 2026-09-15 (#147): ...". Matched per paragraph, since a line wrap can split a name from its date. Not flagged: a line with "e.g." or "example", a date in a code span or fence, a heading, an HTML comment (a generator's provenance stamp), "as of <date>". The story goes in `MISSES.md` (below); `SKILL.md` keeps the rule and a one-line why. There is deliberately no line-count rule (retired 2026-09-28): length alone is never a defect. |
 | `navigable` | warn | a body over 300 lines has no run of more than 150 lines without a heading |
 | `no-repeated-paragraphs` | warn | no paragraph of 100+ characters appears twice |
-| `asks-with-recommendation` | warn | every instruction in `SKILL.md` or a step file to ask the person (`AskUserQuestion`, "ask the user", "confirm with", "check with") sits in a paragraph that names a recommendation ("Recommended", "recommend", "default") |
+| `asks-with-recommendation` | warn | every instruction in `SKILL.md` or a step file to ask the person (`AskUserQuestion`, "ask the user", "confirm with" or "check with" followed by a person: the user, the person, the operator, the owner, a human, them) sits in a paragraph that names a recommendation ("Recommended", "recommend", "default") |
 | `no-self-menu` | warn | no instruction offers the person a choice about the skill's own running ("would you like me to continue", "what would you like to do next", "which mode") outside code fences. A line that forbids the menu (never, do not, avoid) is not counted, nor is a heading, nor a line that only describes a mode rather than asking which. |
 | `references-one-deep` | fail | a markdown file linked from `SKILL.md` links on to no further local file |
 | `long-reference-toc` | warn | every markdown file over 100 lines (other than `SKILL.md` and Freedom's `HDSOP.md`) has a table of contents in its first 30 lines (a line matching `/contents/i`, or three or more `- [x](#anchor)` lines) |
