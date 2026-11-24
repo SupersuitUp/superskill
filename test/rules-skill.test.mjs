@@ -224,6 +224,14 @@ test("no-absolute-paths ignores path fragments, prose placeholders and test file
   assert.deepEqual(sev("no-absolute-paths", dir), []);
 });
 
+test("GUARD: a Windows user folder is a machine path only when a real name follows it, as on a Mac (supersuit-dev#3925)", () => {
+  const one = (line) => sev("no-absolute-paths", variant(fm(`name: valid-basic\n${GOOD_DESC}`), { "scripts/run.mjs": `${line}\n` }));
+  // Placeholders in a comment: nothing named after the user folder.
+  for (const line of ["// e.g. C:\\Users\\<you>\\AppData\\Roaming", "// C:\\Users\\...\\repo is a placeholder", "# C:\\\\Users\\\\<name>\\\\x", "// C:\\Users\\%USERNAME%\\x"]) assert.deepEqual(one(line), [], line);
+  // Real paths still fail: a named user, either case, single or doubled slashes, and other folders on a drive.
+  for (const line of ["const p = 'C:\\Users\\ann\\x'", "open('C:\\\\Users\\\\ann\\\\x')", "p = 'D:\\users\\bob'", "run('C:\\Program Files\\x')"]) assert.deepEqual(one(line), ["fail"], line);
+});
+
 test("injection-scan fails on override phrases and hidden instructions", () => {
   const f = check("injection-scan", skill("injection"));
   assert.ok(f.length >= 2, "both the phrase and the hidden comment are reported");

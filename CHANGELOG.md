@@ -16,6 +16,10 @@
   stripped a heading mark or a list number, never both, so `## 3. What this skill writes back`
   was read as no step and the skill failed. Both are stripped now; a title that appears later in
   the line is still not a step.
+- **A sample Windows path is not a machine path** (supersuit-dev#3925). `no-absolute-paths` let
+  `/Users/...` through on a Mac but counted any `C:\U...` on Windows, so a comment showing
+  `C:\Users\<you>\...` failed the whole skill. A Windows user folder now counts only when a real
+  name follows it, as on a Mac; another folder on a drive (`C:\Program Files`) still counts.
 
 ## 0.11.0 (2026-11-17)
 

@@ -597,8 +597,10 @@ export const skillRules = defineRules([
       if (broken(ctx)) return [];
       const out = [];
       // The path must start the token (not "capture/home/Library") and name something
-      // ("/Users/..." as a placeholder in prose is not a path).
-      const re = /(^|[\s"'`(=:,[{<])(\/Users\/[A-Za-z0-9_]|\/home\/[A-Za-z0-9_]|[A-Z]:\\{1,2}[A-Za-z])/;
+      // ("/Users/..." as a placeholder in prose is not a path). Windows' user folder takes the same
+      // rule ("C:\Users\<you>\..." in a comment is not a path, supersuit-dev#3925); any other folder
+      // on a drive ("C:\Program Files") still counts.
+      const re = /(^|[\s"'`(=:,[{<])(\/Users\/[A-Za-z0-9_]|\/home\/[A-Za-z0-9_]|[A-Z]:\\{1,2}[Uu]sers\\{1,2}[A-Za-z0-9_]|[A-Z]:\\{1,2}(?![Uu]sers\\)[A-Za-z])/;
       for (const p of ctx.files) {
         // Tests use fake machine paths as data; they are not paths the skill depends on.
         if (!TEXT_EXT.test(p) || DATA_DIRS.test(p) || TEST_FILE.test(p)) continue;
