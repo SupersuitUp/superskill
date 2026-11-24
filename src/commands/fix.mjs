@@ -6,8 +6,10 @@ import { guardProblem } from "../guards.mjs";
 export const help = `superskill fix <skill> <miss-id> --eval <eval-id> [--commit <sha>]
 
 Close a miss. Refuses unless the named eval exists in evals/evals.json or goldens/, or is
-test:<path>#<test name> naming a test file (found from the skill folder upward) that contains
-that name, so every fix leaves behind a check that would catch the same miss again.
+test:<path>#<test name> naming a test file (found from the skill folder upward) whose code
+holds that name: a test's title, or a literal part of a title built at run time. A comment or
+an import line does not count. So every fix leaves behind a check that would catch the same
+miss again.
 `;
 
 export async function run(argv) {

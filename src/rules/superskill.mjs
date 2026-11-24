@@ -8,7 +8,7 @@ import { readGoldens, isApproved, isRealApproved, weightOf, goldenOpts } from ".
 import { readRealRuns, meetsBar, knownPair, MIN_REAL_RUNS, MIN_ONE_SHOT } from "../realruns.mjs";
 import { readMisses } from "../misses.mjs";
 import { readEvals, readLatestRun } from "../evals.mjs";
-import { guardProblem, parseTestRef } from "../guards.mjs";
+import { guardProblem, guardWeakness, parseTestRef } from "../guards.mjs";
 
 const f = (severity, message, fix) => ({ severity, message, fix });
 const DAY = 86400000;
@@ -106,10 +106,16 @@ export const superskillRules = defineRules([
       const misses = (readMisses(ctx.dir) || []).filter((m) => m.status === "fixed");
       // Shipped goldens and evals, or a test in the skill's own repo (test:<path>#<name>): a miss
       // is closed by a check that travels with the skill.
-      return misses
-        .map((m) => [m, guardProblem(ctx.dir, m.eval)])
+      const fails = misses
+        .map((m) => [m, guardProblem(ctx.dir, m.eval, { strict: false })])
         .filter(([, why]) => why)
         .map(([m, why]) => f("fail", !m.eval ? `miss ${m.id} is fixed with no regression eval` : parseTestRef(m.eval) ? `miss ${m.id}: ${why}` : `miss ${m.id} names eval "${m.eval}", which is not in evals.json or goldens/`, `Add a case to evals/evals.json that would catch ${m.id} again, or name the test that does as test:<path>#<test name>, on the Eval line.`));
+      // A guard closed by text in a comment or an import line (the rule before 0.11.1) warns.
+      const weak = misses
+        .map((m) => [m, guardWeakness(ctx.dir, m.eval)])
+        .filter(([, why]) => why)
+        .map(([m, why]) => f("warn", `miss ${m.id}: ${why}`, "Name the test's own title on the Eval line, so the guard is a test rather than a comment."));
+      return [...fails, ...weak];
     },
   },
   {

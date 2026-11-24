@@ -6,6 +6,12 @@
   follows** (the user, the person, the operator, the owner, a human, them). "Confirm with browser
   snippet 5" is a step that verifies something, not a question to a person, and no longer warns.
   "Check with the person which template to use" still does.
+- **A `test:<path>#<name>` guard is matched against the test file's code, never its comments or
+  import lines** (supersuit-dev#4002). A title built at run time, a template literal in a loop,
+  is accepted by its run-time name, each `${...}` read as any text, and by a literal part of it.
+  `superskill fix` refuses a name found only in a comment or an import line, and the refusal says
+  what to pass. A miss closed that way before this version warns in `fixed-miss-has-eval` instead
+  of failing.
 
 ## 0.11.0 (2026-11-17)
 
