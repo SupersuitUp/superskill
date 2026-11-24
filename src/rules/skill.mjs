@@ -39,7 +39,8 @@ export function stepSection(body, title) {
     if (/^\s*(```|~~~)/.test(lines[i])) { fenced = !fenced; continue; }
     if (fenced) continue;
     // Only a heading or a list step that STARTS with the title counts; a mention in prose does not.
-    const lead = lines[i].replace(/^\s*(#{1,6}\s+|(\d+[.)]|[-*+])\s+)?(\*\*|__)?/, "").toLowerCase();
+    // A heading may be numbered too ("## 3. What this skill reads first"), so both are stripped (#3907).
+    const lead = lines[i].replace(/^\s*(#{1,6}\s+)?((\d+[.)]|[-*+])\s+)?(\*\*|__)?/, "").toLowerCase();
     if (!lead.startsWith(want)) continue;
     const h = /^(#{1,6})\s/.exec(lines[i]);
     let j = i + 1, inner = false;

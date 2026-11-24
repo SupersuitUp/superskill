@@ -121,6 +121,16 @@ test("metadata-reads-writes counts only a heading or a step that starts with the
   assert.deepEqual(check("metadata-reads-writes", variant(META, step)), []);
 });
 
+test("GUARD: a numbered step heading counts, mark and number both (supersuit-dev#3907)", () => {
+  for (const [reads, writes] of [["## 1. What this skill reads first", "## 3. What this skill writes back"], ["### 2) **What this skill reads first**", "### 4) What this skill writes back"]]) {
+    const body = BODY.replace("## What this skill reads first", reads).replace("## What this skill writes back", writes);
+    assert.deepEqual(check("metadata-reads-writes", variant(META, body)), [], reads);
+  }
+  // Still a step only at the start: a numbered heading that mentions the title later is not one.
+  const later = BODY.replace("## What this skill reads first", "## 1. Before anything, What this skill reads first");
+  assert.match(fails("metadata-reads-writes", variant(META, later))[0].message, /no "What this skill reads first" step/);
+});
+
 test("the old names reads and writes are accepted for one version, checked the same, and warned as deprecated", () => {
   const old = META.replace("reads_before_acting:", "reads:").replace("writes_back:", "writes:");
   const out = check("metadata-reads-writes", variant(old, BODY));

@@ -12,6 +12,10 @@
   `superskill fix` refuses a name found only in a comment or an import line, and the refusal says
   what to pass. A miss closed that way before this version warns in `fixed-miss-has-eval` instead
   of failing.
+- **A numbered step heading counts as a step** (supersuit-dev#3907). `metadata-reads-writes`
+  stripped a heading mark or a list number, never both, so `## 3. What this skill writes back`
+  was read as no step and the skill failed. Both are stripped now; a title that appears later in
+  the line is still not a step.
 
 ## 0.11.0 (2026-11-17)
 
